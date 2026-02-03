@@ -1,2 +1,112 @@
-# stream-walkway
+# Stream Walkway
+
 MSA 기반 도로 정보 분석 시스템
+
+## 프로젝트 개요
+
+이 프로젝트는 마이크로서비스 아키텍처(MSA)를 기반으로 도로 영상을 분석하여 도로 정보를 추출하고 저장하는 시스템입니다.
+
+### 주요 기능
+
+- YouTube 영상에서 도로 이미지 자동 다운로드
+- ML 모델을 활용한 도로 정보 자동 추출
+- CQRS 패턴 기반 데이터 읽기/쓰기 분리
+- RabbitMQ를 통한 이벤트 기반 비동기 처리
+- PostgreSQL + Redis 하이브리드 데이터 저장
+
+## 프로젝트 구조
+
+```
+stream-walkway/
+├── apps/                      # 주요 애플리케이션
+│   ├── frontend/             # React 기반 웹 프론트엔드
+│   ├── backend/              # Spring Boot API Gateway 및 오케스트레이션
+│   ├── youtube-service/      # Node.js 이미지 다운로더
+│   └── ml-service/           # Python/Node.js ML 분석 서비스
+├── services/                  # 마이크로서비스
+│   ├── writer/               # 쓰기 서비스 (PostgreSQL + Redis 업데이트)
+│   └── reader/               # 읽기 서비스 (최적화된 조회)
+├── packages/                  # 공유 라이브러리
+│   └── shared/               # 공통 타입 정의 및 유틸리티
+├── infra/                     # 인프라 구성
+│   ├── docker/               # Docker Compose 설정
+│   ├── kubernetes/           # K8s 매니페스트
+│   └── scripts/              # 배포 및 초기화 스크립트
+└── docs/                      # 문서
+    ├── architecture/         # 아키텍처 다이어그램
+    ├── api-specs/            # API 명세서
+    └── diagrams/             # 시스템 흐름도
+```
+
+## 기술 스택
+
+### Frontend
+- React
+- TypeScript
+
+### Backend
+- Spring Boot (API Gateway, Writer, Reader)
+- Node.js (YouTube Service)
+- Python/Node.js (ML Service)
+
+### Infrastructure
+- PostgreSQL (장기 데이터 저장)
+- Redis (빠른 읽기 캐싱)
+- RabbitMQ (이벤트 메시징)
+- Docker & Kubernetes
+
+## 아키텍처
+
+### MSA 구조
+
+1. **통신 서비스** (Backend): 웹 요청 처리 및 서비스 오케스트레이션
+2. **분석 서비스** (ML Service): 이미지 분석 및 도로 정보 추출, 이벤트 발행
+3. **쓰기 서비스** (Writer): PostgreSQL 저장 및 Redis 업데이트
+4. **읽기 서비스** (Reader): 최적화된 데이터 조회
+
+### 데이터 흐름
+
+```
+Frontend → Backend (Gateway) → YouTube Service → 이미지 다운로드
+                              ↓
+                         RabbitMQ (이벤트 발행)
+                              ↓
+                    ML Service (병렬 처리)
+                              ↓
+                         RabbitMQ (분석 결과)
+                              ↓
+                    Writer Service → PostgreSQL + Redis
+                              ↓
+                    Reader Service ← 사용자 조회 요청
+```
+
+## 시작하기
+
+### 사전 요구사항
+
+- Node.js 18+
+- Java 17+
+- Python 3.10+
+- Docker & Docker Compose
+
+### 로컬 개발 환경 설정
+
+```bash
+# 저장소 클론
+git clone https://github.com/June21621/stream-walkway.git
+cd stream-walkway
+
+# 인프라 서비스 시작 (PostgreSQL, Redis, RabbitMQ)
+cd infra/docker
+docker-compose up -d
+
+# 각 서비스 실행 (추후 업데이트 예정)
+```
+
+## 개발 가이드
+
+자세한 개발 가이드는 [docs/](./docs/) 폴더를 참고하세요.
+
+## 라이센스
+
+This project is private and proprietary.
