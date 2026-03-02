@@ -4,8 +4,27 @@ server:
 spring:
   application:
     name: writer
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stream_db}
+    username: ${DB_USER:stream_user}
+    password: ${DB_PASSWORD:dndlcjs}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none       # init-db.sql로 이미 테이블 생성했으므로 none
+    show-sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:dndlcjs}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:stream_user}
+    password: ${RABBITMQ_PASSWORD:rabbitmq_pw}
+    virtual-host: ${RABBITMQ_VHOST:/}
