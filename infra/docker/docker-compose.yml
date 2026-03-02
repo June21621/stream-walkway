@@ -2,8 +2,10 @@ version: "3.9"
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.3-alpine  # PostGIS 지원 이미지
     container_name: stream-postgres
+    env_file:
+      - ../../.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -13,6 +15,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -33,6 +36,27 @@ services:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
+      retries: 5
+    networks:
+      - stream-network
+
+  # ================= RabbitMQ =================
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: stream-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"        # AMQP 프로토콜 (서비스 간 통신)
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672" # 관리 UI (브라우저)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
       retries: 5
     networks:
       - stream-network
@@ -70,10 +94,17 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       writer:
         condition: service_started
@@ -94,8 +125,16 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
     depends_on:
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - stream-network
 
@@ -111,8 +150,16 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
     depends_on:
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - stream-network
 
@@ -134,10 +181,17 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - stream-network
@@ -159,10 +213,17 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-stream_user}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_pw}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - stream-network
@@ -170,6 +231,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
 
 networks:
   stream-network:
