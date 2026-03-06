@@ -2,7 +2,7 @@
 
 이 문서는 `stream-walkway` 프로젝트의 전체 아키텍처와 디렉터리 구조, 각 컴포넌트의 역할을 설명합니다.
 
-Stream Walkway는 스트리밍 데이터(예: YouTube 영상 등)를 수집하고, 분석한 뒤, 읽기/쓰기 분리(CQRS)와 마이크로서비스 아키텍처(MSA)를 통해 효율적으로 제공하는 시스템을 목표로 합니다.  
+Stream Walkway는 스트리밍 데이터(예: YouTube 영상 등)를 수집하고, 분석한 뒤, 읽기/쓰기 분리(CQRS)와 마이크로서비스 아키텍처(MSA)를 통해 효율적으로 제공하는 시스템을 목표로 합니다.
 하나의 모노레포 안에 프론트엔드, 백엔드 게이트웨이, 도메인 마이크로서비스, ML/워크로드 서비스, 인프라 설정을 함께 관리합니다.[cite:1][cite:2][cite:4]
 
 ## 디렉터리 구조 개요
@@ -27,3 +27,18 @@ stream-walkway/
     ├── architecture/          # 아키텍처 상세 설명
     ├── api-specs/             # API 명세서 (OpenAPI/ADR 등)
     └── diagrams/              # 시스템/시퀀스 다이어그램
+
+## 기술 스택
+
+### 메시지 브로커
+- Apache Kafka (KRaft, apache/kafka:3.9.0) — Zookeeper 없이 KRaft 모드로 운영
+
+### 데이터 저장소
+- PostgreSQL + PostGIS
+- Redis
+
+### 서비스
+- Spring Boot (Writer, Reader, Backend Gateway)
+- Node.js (YouTube Service)
+- Python/FastAPI (ML Service)
+```

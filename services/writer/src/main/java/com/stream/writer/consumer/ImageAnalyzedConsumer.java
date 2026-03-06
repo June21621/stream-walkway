@@ -3,7 +3,7 @@ package com.stream.writer.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stream.writer.entity.Capture;
 import com.stream.writer.repository.CaptureRepository;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -25,10 +25,10 @@ public class ImageAnalyzedConsumer {
     }
 
     // ─────────────────────────────────────────
-    // image.analyzed 큐 구독
+    // image.analyzed 토픽 구독
     // 메시지 수신 → PostgreSQL 저장 → Redis 캐싱
     // ─────────────────────────────────────────
-    @RabbitListener(queues = "image.analyzed")
+    @KafkaListener(topics = "image.analyzed", groupId = "writer-group")
     public void consume(String message) {
         try {
             Map<String, Object> data = objectMapper.readValue(message, Map.class);

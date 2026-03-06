@@ -11,7 +11,7 @@ MSA 기반 도로 정보 분석 시스템
 - YouTube 영상에서 도로 이미지 자동 다운로드
 - ML 모델을 활용한 도로 정보 자동 추출
 - CQRS 패턴 기반 데이터 읽기/쓰기 분리
-- RabbitMQ를 통한 이벤트 기반 비동기 처리
+- Apache Kafka (KRaft)를 통한 이벤트 기반 비동기 처리
 - PostgreSQL + Redis 하이브리드 데이터 저장
 
 ## 프로젝트 구조
@@ -52,7 +52,7 @@ stream-walkway/
 ### Infrastructure
 - PostgreSQL (장기 데이터 저장)
 - Redis (빠른 읽기 캐싱)
-- RabbitMQ (이벤트 메시징)
+- Apache Kafka (KRaft, apache/kafka:3.9.0) (이벤트 메시징)
 - Docker & Kubernetes
 
 ## 아키텍처
@@ -69,11 +69,11 @@ stream-walkway/
 ```
 Frontend → Backend (Gateway) → YouTube Service → 이미지 다운로드
                               ↓
-                         RabbitMQ (이벤트 발행)
+                         Kafka (이벤트 발행)
                               ↓
                     ML Service (병렬 처리)
                               ↓
-                         RabbitMQ (분석 결과)
+                         Kafka (분석 결과)
                               ↓
                     Writer Service → PostgreSQL + Redis
                               ↓
@@ -96,7 +96,7 @@ Frontend → Backend (Gateway) → YouTube Service → 이미지 다운로드
 git clone https://github.com/June21621/stream-walkway.git
 cd stream-walkway
 
-# 인프라 서비스 시작 (PostgreSQL, Redis, RabbitMQ)
+# 인프라 서비스 시작 (PostgreSQL, Redis, Kafka)
 cd infra/docker
 docker-compose up -d
 

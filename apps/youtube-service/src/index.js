@@ -1,5 +1,5 @@
 const express = require('express');
-const { connectRabbitMQ, publishMessage } = require('./rabbitmq');
+const { connectKafka, publishMessage } = require('./kafka');
 
 const app = express();
 app.use(express.json());
@@ -40,7 +40,7 @@ app.post('/test/publish', async (req, res) => {
 // ─────────────────────────────────────────
 async function start() {
   try {
-    await connectRabbitMQ();
+    await connectKafka();
     app.listen(PORT, () => {
       console.log(`[youtube-service] running on port ${PORT}`);
     });
