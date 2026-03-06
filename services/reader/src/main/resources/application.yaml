@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stream_db}
-    username: ${DB_USER:stream_user}
-    password: ${DB_PASSWORD:dndlcjs}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,4 +20,4 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:dndlcjs}
+      password: ${REDIS_PASSWORD}
