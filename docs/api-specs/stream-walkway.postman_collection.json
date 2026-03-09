@@ -1,0 +1,422 @@
+{
+  "info": {
+    "name": "Stream Walkway API",
+    "description": "MSA 기반 도로 정보 분석 시스템 API 명세서",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Backend Gateway :8080",
+      "description": "외부 클라이언트와 통신하는 API Gateway",
+      "item": [
+        {
+          "name": "Streams",
+          "item": [
+            {
+              "name": "전체 스트림 목록 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/streams",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "streams"]
+                },
+                "description": "[외부 공개] 등록된 전체 스트림 목록을 반환합니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "[\n  {\n    \"id\": 1,\n    \"name\": \"한강 산책로\",\n    \"location\": \"LINESTRING(126.97 37.55, 126.98 37.56)\",\n    \"created_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+                }
+              ]
+            },
+            {
+              "name": "스트림 단건 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/streams/:id",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "streams", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1",
+                      "description": "스트림 ID"
+                    }
+                  ]
+                },
+                "description": "[외부 공개] 특정 스트림의 상세 정보를 반환합니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"id\": 1,\n  \"name\": \"한강 산책로\",\n  \"location\": \"LINESTRING(126.97 37.55, 126.98 37.56)\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+                },
+                {
+                  "name": "404 Not Found",
+                  "status": "Not Found",
+                  "code": 404,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Stream not found\",\n  \"id\": 1\n}"
+                }
+              ]
+            },
+            {
+              "name": "스트림 등록 [내부 전용]",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Internal-Key", "value": "{{internal_api_key}}", "description": "내부 전용 인증 키" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"한강 산책로\",\n  \"location\": \"LINESTRING(126.97 37.55, 126.98 37.56)\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/streams",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "streams"]
+                },
+                "description": "[내부 전용 - 외부 비노출] 새 스트림을 등록합니다. Writer Service를 통해 PostgreSQL에 저장됩니다."
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"id\": 1,\n  \"name\": \"한강 산책로\",\n  \"location\": \"LINESTRING(126.97 37.55, 126.98 37.56)\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Trails",
+          "item": [
+            {
+              "name": "전체 트레일 목록 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/trails?stream_id=1",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "trails"],
+                  "query": [
+                    { "key": "stream_id", "value": "1", "description": "하천 ID 필터 (해당 하천에 속한 산책길만 조회)" }
+                  ]
+                },
+                "description": "[외부 공개] 등록된 전체 트레일 목록을 반환합니다. stream_id로 특정 하천의 산책길만 필터링할 수 있습니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "[\n  {\n    \"id\": 1,\n    \"stream_id\": 1,\n    \"camera_number\": \"CAM-001\",\n    \"location\": \"POINT(126.97 37.55)\",\n    \"direction\": \"북\",\n    \"status\": \"active\",\n    \"created_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+                }
+              ]
+            },
+            {
+              "name": "트레일 단건 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/trails/:id",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "trails", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1",
+                      "description": "트레일 ID"
+                    }
+                  ]
+                },
+                "description": "[외부 공개] 특정 트레일의 상세 정보를 반환합니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"id\": 1,\n  \"stream_id\": 1,\n  \"camera_number\": \"CAM-001\",\n  \"location\": \"POINT(126.97 37.55)\",\n  \"direction\": \"북\",\n  \"status\": \"active\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+                },
+                {
+                  "name": "404 Not Found",
+                  "status": "Not Found",
+                  "code": 404,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Trail not found\",\n  \"id\": 1\n}"
+                }
+              ]
+            },
+            {
+              "name": "트레일 등록 [내부 전용]",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Internal-Key", "value": "{{internal_api_key}}", "description": "내부 전용 인증 키" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"stream_id\": 1,\n  \"camera_number\": \"CAM-001\",\n  \"location\": \"POINT(126.97 37.55)\",\n  \"direction\": \"북\",\n  \"status\": \"active\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/trails",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "trails"]
+                },
+                "description": "[내부 전용 - 외부 비노출] 새 트레일을 등록합니다. Writer Service를 통해 PostgreSQL에 저장됩니다."
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"id\": 1,\n  \"stream_id\": 1,\n  \"camera_number\": \"CAM-001\",\n  \"location\": \"POINT(126.97 37.55)\",\n  \"direction\": \"북\",\n  \"status\": \"active\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Captures",
+          "item": [
+            {
+              "name": "캡처 목록 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/captures?stream_id=1&trail_id=1&limit=20&sort=created_at",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "captures"],
+                  "query": [
+                    { "key": "stream_id", "value": "1", "description": "스트림 ID 필터" },
+                    { "key": "trail_id", "value": "1", "description": "트레일 ID 필터" },
+                    { "key": "limit", "value": "20", "description": "조회 개수 (기본값: 20)" },
+                    { "key": "sort", "value": "created_at", "description": "정렬 기준 (기본값: created_at 내림차순)" }
+                  ]
+                },
+                "description": "[외부 공개] 캡처 목록을 반환합니다. stream_id, trail_id, limit으로 필터링 가능합니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "[\n  {\n    \"id\": 1,\n    \"trail_id\": 1,\n    \"stream_id\": 1,\n    \"image_path\": \"/images/capture_001.jpg\",\n    \"road_status\": \"양호\",\n    \"confidence\": 0.95,\n    \"created_at\": \"2024-01-01T00:00:00Z\",\n    \"updated_at\": \"2024-01-01T00:00:00Z\"\n  }\n]"
+                }
+              ]
+            },
+            {
+              "name": "캡처 단건 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/captures/:id",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "captures", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "1",
+                      "description": "캡처 ID"
+                    }
+                  ]
+                },
+                "description": "[외부 공개] 특정 캡처의 상세 정보를 반환합니다. (보류용 - 추후 활용)"
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"id\": 1,\n  \"trail_id\": 1,\n  \"stream_id\": 1,\n  \"image_path\": \"/images/capture_001.jpg\",\n  \"road_status\": \"양호\",\n  \"confidence\": 0.95,\n  \"created_at\": \"2024-01-01T00:00:00Z\",\n  \"updated_at\": \"2024-01-01T00:00:00Z\"\n}"
+                },
+                {
+                  "name": "404 Not Found",
+                  "status": "Not Found",
+                  "code": 404,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Capture not found\",\n  \"id\": 1\n}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "YouTube Service :3001",
+      "description": "YouTube 영상에서 이미지를 다운로드하고 Kafka로 이벤트를 발행하는 서비스",
+      "item": [
+        {
+          "name": "이미지 다운로드 요청",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stream_id\": 1,\n  \"trail_id\": 1,\n  \"youtube_url\": \"https://www.youtube.com/watch?v=example\",\n  \"interval_sec\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}:{{youtube_port}}/download",
+              "host": ["{{base_url}}"],
+              "port": "{{youtube_port}}",
+              "path": ["download"]
+            },
+            "description": "YouTube URL을 받아 이미지 다운로드 작업을 시작합니다. 완료 시 Kafka [image.downloaded] 이벤트를 발행합니다."
+          },
+          "response": [
+            {
+              "name": "202 Accepted",
+              "status": "Accepted",
+              "code": 202,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"jobId\": \"job_abc123\",\n  \"status\": \"queued\",\n  \"stream_id\": 1,\n  \"trail_id\": 1,\n  \"youtube_url\": \"https://www.youtube.com/watch?v=example\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "다운로드 작업 상태 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}:{{youtube_port}}/status/:jobId",
+              "host": ["{{base_url}}"],
+              "port": "{{youtube_port}}",
+              "path": ["status", ":jobId"],
+              "variable": [
+                {
+                  "key": "jobId",
+                  "value": "job_abc123",
+                  "description": "다운로드 작업 ID"
+                }
+              ]
+            },
+            "description": "다운로드 작업의 현재 진행 상태를 반환합니다."
+          },
+          "response": [
+            {
+              "name": "200 OK - 진행 중",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"jobId\": \"job_abc123\",\n  \"status\": \"processing\",\n  \"progress\": 45,\n  \"downloaded_count\": 9\n}"
+            },
+            {
+              "name": "200 OK - 완료",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"jobId\": \"job_abc123\",\n  \"status\": \"completed\",\n  \"progress\": 100,\n  \"downloaded_count\": 20\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ML Service :5001",
+      "description": "이미지를 분석하여 도로 상태를 추출하고 Kafka로 이벤트를 발행하는 서비스",
+      "item": [
+        {
+          "name": "이미지 분석 요청",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stream_id\": 1,\n  \"trail_id\": 1,\n  \"image_path\": \"/images/capture_001.jpg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}:{{ml_port}}/analyze",
+              "host": ["{{base_url}}"],
+              "port": "{{ml_port}}",
+              "path": ["analyze"]
+            },
+            "description": "이미지를 분석하여 도로 상태를 추출합니다. 완료 시 Kafka [analysis.completed] 이벤트를 발행하고 Writer Service가 captures 테이블에 저장합니다."
+          },
+          "response": [
+            {
+              "name": "202 Accepted",
+              "status": "Accepted",
+              "code": 202,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"jobId\": \"ml_xyz789\",\n  \"status\": \"queued\",\n  \"image_path\": \"/images/capture_001.jpg\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "서비스 상태 확인",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}:{{ml_port}}/health",
+              "host": ["{{base_url}}"],
+              "port": "{{ml_port}}",
+              "path": ["health"]
+            },
+            "description": "ML 서비스의 현재 상태를 확인합니다."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"healthy\",\n  \"model\": \"loaded\",\n  \"uptime_sec\": 3600\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost", "type": "string" },
+    { "key": "backend_port", "value": "8080", "type": "string" },
+    { "key": "reader_port", "value": "8001", "type": "string" },
+    { "key": "writer_port", "value": "8002", "type": "string" },
+    { "key": "youtube_port", "value": "3001", "type": "string" },
+    { "key": "ml_port", "value": "5001", "type": "string" },
+    { "key": "internal_api_key", "value": "your-internal-key-here", "type": "string" }
+  ]
+}
