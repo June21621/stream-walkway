@@ -1,3 +1,6 @@
 fastapi
 uvicorn
 aiokafka
+pytest
+pytest-asyncio
+httpx
