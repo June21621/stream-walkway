@@ -42,13 +42,6 @@ class CaptureControllerTest {
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
     }
 
-    private Capture createCapture(Long id, Integer trailId, Integer streamId) {
-        Capture capture = new Capture();
-        // Capture는 setter가 없으므로 리플렉션 없이 필드를 검증하는 방식으로 테스트
-        // 실제 구현 시 setter 또는 생성자 추가 필요
-        return capture;
-    }
-
     // ─────────────────────────────────────────
     // GET /captures
     // ─────────────────────────────────────────
