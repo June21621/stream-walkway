@@ -142,4 +142,39 @@ class CaptureControllerTest {
         org.mockito.Mockito.verify(captureRepository, org.mockito.Mockito.never())
                 .findByTrailId(org.mockito.ArgumentMatchers.any());
     }
+
+    @Test
+    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스 시 조회 결과를 Redis에 다시 채워넣는다")
+    void getLatestByTrail_repopulatesCacheOnRedisMiss() throws Exception {
+        // given
+        String redisKey = "capture:latest:trail:1";
+        given(valueOperations.get(redisKey)).willReturn(null);
+
+        Capture capture = new Capture();
+        given(captureRepository.findByTrailId(1)).willReturn(List.of(capture));
+
+        // when
+        mockMvc.perform(get("/captures/trail/1/latest"))
+                .andExpect(status().isOk());
+
+        // then
+        org.mockito.Mockito.verify(valueOperations).set(org.mockito.ArgumentMatchers.eq(redisKey), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스이고 결과도 없으면 Redis에 캐싱하지 않는다")
+    void getLatestByTrail_doesNotCacheOnEmptyResult() throws Exception {
+        // given
+        String redisKey = "capture:latest:trail:999";
+        given(valueOperations.get(redisKey)).willReturn(null);
+        given(captureRepository.findByTrailId(999)).willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/captures/trail/999/latest"))
+                .andExpect(status().isOk());
+
+        // then
+        org.mockito.Mockito.verify(valueOperations, org.mockito.Mockito.never())
+                .set(org.mockito.ArgumentMatchers.eq(redisKey), org.mockito.ArgumentMatchers.anyString());
+    }
 }

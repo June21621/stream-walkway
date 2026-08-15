@@ -1,5 +1,7 @@
 package com.stream.reader.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stream.reader.dto.CaptureView;
 import com.stream.reader.repository.CaptureRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -14,11 +16,14 @@ public class CaptureController {
 
     private final CaptureRepository captureRepository;
     private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     public CaptureController(CaptureRepository captureRepository,
-                              StringRedisTemplate redisTemplate) {
+                              StringRedisTemplate redisTemplate,
+                              ObjectMapper objectMapper) {
         this.captureRepository = captureRepository;
         this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     // ─────────────────────────────────────────
@@ -33,7 +38,7 @@ public class CaptureController {
 
     // ─────────────────────────────────────────
     // trailId로 최신 결과 조회
-    // Redis 캐시 우선 → 없으면 PostgreSQL 조회
+    // Redis 캐시 우선 → 없으면 PostgreSQL 조회 → 조회 결과를 Redis에 재적재
     // ─────────────────────────────────────────
     @GetMapping("/trail/{trailId}/latest")
     public Object getLatestByTrail(@PathVariable Integer trailId) {
@@ -49,6 +54,16 @@ public class CaptureController {
         List<CaptureView> views = captureRepository.findByTrailId(trailId).stream()
                 .map(CaptureView::from)
                 .toList();
+
+        if (!views.isEmpty()) {
+            try {
+                redisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(views));
+                System.out.println("[reader] Redis 캐시 재적재 완료: " + redisKey);
+            } catch (JsonProcessingException e) {
+                System.err.println("[reader] Redis 캐시 재적재 실패: " + e.getMessage());
+            }
+        }
+
         return Map.of("source", "postgresql", "data", views);
     }
 }
