@@ -1,0 +1,50 @@
+package com.stream.writer.command;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stream.writer.entity.Capture;
+import com.stream.writer.repository.CaptureRepository;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
+@Component
+public class CaptureCommandHandler {
+
+    private final CaptureRepository captureRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    public CaptureCommandHandler(CaptureRepository captureRepository,
+                                  StringRedisTemplate redisTemplate,
+                                  ObjectMapper objectMapper) {
+        this.captureRepository = captureRepository;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+    }
+
+    // ─────────────────────────────────────────
+    // CreateCaptureCommand 처리 → PostgreSQL 저장 → Redis 캐싱
+    // ─────────────────────────────────────────
+    public Capture handle(CreateCaptureCommand command) {
+        Capture capture = new Capture();
+        capture.setTrailId(command.trailId());
+        capture.setStreamId(command.streamId());
+        capture.setImagePath(command.imagePath());
+        capture.setRoadStatus(command.roadStatus());
+        capture.setConfidence(command.confidence());
+
+        Capture saved = captureRepository.save(capture);
+        System.out.println("[writer] PostgreSQL 저장 완료 id=" + saved.getId());
+
+        String redisKey = "capture:latest:trail:" + saved.getTrailId();
+        try {
+            String redisValue = objectMapper.writeValueAsString(command);
+            redisTemplate.opsForValue().set(redisKey, redisValue);
+            System.out.println("[writer] Redis 캐싱 완료 key=" + redisKey);
+        } catch (JsonProcessingException e) {
+            System.err.println("[writer] Redis 캐싱 실패: " + e.getMessage());
+        }
+
+        return saved;
+    }
+}
