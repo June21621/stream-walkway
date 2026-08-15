@@ -1,4 +1,4 @@
-package com.stream.reader.dto;
+package com.stream.shared.dto;
 
 import com.stream.shared.entity.Capture;
 

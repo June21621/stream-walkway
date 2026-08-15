@@ -28,6 +28,7 @@ stream-walkway/
 │   └── reader/               # 읽기 서비스 (최적화된 조회)
 ├── packages/                  # 공유 라이브러리
 │   └── shared/               # 공통 타입 정의 및 유틸리티
+├── pom.xml                    # 루트 Maven 애그리게이터 (shared → reader/writer 순서로 빌드)
 ├── infra/                     # 인프라 구성
 │   ├── docker/               # Docker Compose 설정
 │   ├── kubernetes/           # K8s 매니페스트
@@ -54,6 +55,8 @@ stream-walkway/
 - Redis (빠른 읽기 캐싱)
 - Apache Kafka (KRaft, apache/kafka:3.9.0) (이벤트 메시징)
 - Docker & Kubernetes
+
+저장소 루트의 `pom.xml`은 `packages/shared`, `services/reader`, `services/writer`를 모듈로 묶은 Maven 애그리게이터입니다. 루트에서 `mvn install`을 한 번 실행하면 Maven 리액터가 의존 관계를 감지해 `shared`를 먼저 빌드/설치한 뒤 이를 참조하는 `reader`/`writer`를 빌드합니다.
 
 ## 아키텍처
 

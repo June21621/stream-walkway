@@ -1,4 +1,4 @@
-package com.stream.reader.dto;
+package com.stream.shared.dto;
 
 import com.stream.shared.entity.Capture;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("Reader - CaptureView 테스트")
+@DisplayName("Shared - CaptureView 테스트")
 class CaptureViewTest {
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
@@ -23,11 +23,11 @@ class CaptureViewTest {
     void from_mapsAllFieldsFromEntity() throws Exception {
         Capture capture = new Capture();
         setField(capture, "id", 1L);
-        setField(capture, "trailId", 2);
-        setField(capture, "streamId", 3);
-        setField(capture, "imagePath", "/images/capture_001.jpg");
-        setField(capture, "roadStatus", "양호");
-        setField(capture, "confidence", 0.95);
+        capture.setTrailId(2);
+        capture.setStreamId(3);
+        capture.setImagePath("/images/capture_001.jpg");
+        capture.setRoadStatus("양호");
+        capture.setConfidence(0.95);
         setField(capture, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
 
         CaptureView view = CaptureView.from(capture);

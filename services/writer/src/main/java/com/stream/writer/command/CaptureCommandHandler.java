@@ -2,6 +2,7 @@ package com.stream.writer.command;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stream.shared.dto.CaptureView;
 import com.stream.shared.entity.Capture;
 import com.stream.writer.repository.CaptureRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,7 +24,9 @@ public class CaptureCommandHandler {
     }
 
     // ─────────────────────────────────────────
-    // CreateCaptureCommand 처리 → PostgreSQL 저장 → Redis 캐싱
+    // CreateCaptureCommand 처리 → PostgreSQL 저장 → Redis에 CaptureView로 캐싱
+    // (reader와 동일한 CaptureView 모양으로 캐싱해야 캐시 미스 시 reader의
+    //  재적재 로직과 페이로드 모양이 일치한다)
     // ─────────────────────────────────────────
     public Capture handle(CreateCaptureCommand command) {
         Capture capture = new Capture();
@@ -38,7 +41,7 @@ public class CaptureCommandHandler {
 
         String redisKey = "capture:latest:trail:" + saved.getTrailId();
         try {
-            String redisValue = objectMapper.writeValueAsString(command);
+            String redisValue = objectMapper.writeValueAsString(CaptureView.from(saved));
             redisTemplate.opsForValue().set(redisKey, redisValue);
             System.out.println("[writer] Redis 캐싱 완료 key=" + redisKey);
         } catch (JsonProcessingException e) {

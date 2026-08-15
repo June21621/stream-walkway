@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -93,36 +94,35 @@ class CaptureControllerTest {
     }
 
     @Test
-    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스 시 PostgreSQL 데이터를 반환한다")
+    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스 시 PostgreSQL의 최신 데이터를 반환한다")
     void getLatestByTrail_returnsPostgresDataOnRedisMiss() throws Exception {
         // given
         String redisKey = "capture:latest:trail:1";
         given(valueOperations.get(redisKey)).willReturn(null); // cache miss
 
         Capture capture = new Capture();
-        given(captureRepository.findByTrailId(1)).willReturn(List.of(capture));
+        given(captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(1)).willReturn(java.util.Optional.of(capture));
 
         // when & then
         mockMvc.perform(get("/captures/trail/1/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source").value("postgresql"))
-                .andExpect(jsonPath("$.data").isArray());
+                .andExpect(jsonPath("$.data").exists());
     }
 
     @Test
-    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스이고 결과도 없으면 빈 배열을 반환한다")
-    void getLatestByTrail_returnsEmptyListOnRedisMissAndNoData() throws Exception {
+    @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스이고 결과도 없으면 data가 null이다")
+    void getLatestByTrail_returnsNullDataOnRedisMissAndNoData() throws Exception {
         // given
         String redisKey = "capture:latest:trail:999";
         given(valueOperations.get(redisKey)).willReturn(null); // cache miss
-        given(captureRepository.findByTrailId(999)).willReturn(List.of());
+        given(captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(999)).willReturn(java.util.Optional.empty());
 
         // when & then
         mockMvc.perform(get("/captures/trail/999/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source").value("postgresql"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data").isEmpty());
+                .andExpect(jsonPath("$.data").doesNotExist());
     }
 
     @Test
@@ -140,7 +140,7 @@ class CaptureControllerTest {
 
         // PostgreSQL 조회 없음을 검증
         org.mockito.Mockito.verify(captureRepository, org.mockito.Mockito.never())
-                .findByTrailId(org.mockito.ArgumentMatchers.any());
+                .findFirstByTrailIdOrderByCreatedAtDesc(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -151,7 +151,7 @@ class CaptureControllerTest {
         given(valueOperations.get(redisKey)).willReturn(null);
 
         Capture capture = new Capture();
-        given(captureRepository.findByTrailId(1)).willReturn(List.of(capture));
+        given(captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(1)).willReturn(java.util.Optional.of(capture));
 
         // when
         mockMvc.perform(get("/captures/trail/1/latest"))
@@ -162,12 +162,32 @@ class CaptureControllerTest {
     }
 
     @Test
+    @DisplayName("GET /captures/trail/{trailId}/latest - 재적재된 캐시 값은 CaptureView 형태의 단일 JSON 객체다 (배열이 아님)")
+    void getLatestByTrail_repopulatedCacheIsSingleObjectNotArray() throws Exception {
+        // given
+        String redisKey = "capture:latest:trail:1";
+        given(valueOperations.get(redisKey)).willReturn(null);
+
+        Capture capture = new Capture();
+        given(captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(1)).willReturn(java.util.Optional.of(capture));
+
+        // when
+        mockMvc.perform(get("/captures/trail/1/latest"))
+                .andExpect(status().isOk());
+
+        // then
+        org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(valueOperations).set(org.mockito.ArgumentMatchers.eq(redisKey), captor.capture());
+        assertThat(captor.getValue()).doesNotStartWith("[");
+    }
+
+    @Test
     @DisplayName("GET /captures/trail/{trailId}/latest - Redis 캐시 미스이고 결과도 없으면 Redis에 캐싱하지 않는다")
     void getLatestByTrail_doesNotCacheOnEmptyResult() throws Exception {
         // given
         String redisKey = "capture:latest:trail:999";
         given(valueOperations.get(redisKey)).willReturn(null);
-        given(captureRepository.findByTrailId(999)).willReturn(List.of());
+        given(captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(999)).willReturn(java.util.Optional.empty());
 
         // when
         mockMvc.perform(get("/captures/trail/999/latest"))

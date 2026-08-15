@@ -2,13 +2,15 @@ package com.stream.reader.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stream.reader.dto.CaptureView;
 import com.stream.reader.repository.CaptureRepository;
+import com.stream.shared.dto.CaptureView;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/captures")
@@ -38,7 +40,7 @@ public class CaptureController {
 
     // ─────────────────────────────────────────
     // trailId로 최신 결과 조회
-    // Redis 캐시 우선 → 없으면 PostgreSQL 조회 → 조회 결과를 Redis에 재적재
+    // Redis 캐시 우선 → 없으면 PostgreSQL에서 진짜 최신 1건 조회 → 캐시 재적재
     // ─────────────────────────────────────────
     @GetMapping("/trail/{trailId}/latest")
     public Object getLatestByTrail(@PathVariable Integer trailId) {
@@ -51,19 +53,21 @@ public class CaptureController {
         }
 
         System.out.println("[reader] Redis 캐시 미스 → PostgreSQL 조회");
-        List<CaptureView> views = captureRepository.findByTrailId(trailId).stream()
-                .map(CaptureView::from)
-                .toList();
+        Optional<CaptureView> latest = captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(trailId)
+                .map(CaptureView::from);
 
-        if (!views.isEmpty()) {
+        if (latest.isPresent()) {
             try {
-                redisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(views));
+                redisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(latest.get()));
                 System.out.println("[reader] Redis 캐시 재적재 완료: " + redisKey);
             } catch (JsonProcessingException e) {
                 System.err.println("[reader] Redis 캐시 재적재 실패: " + e.getMessage());
             }
         }
 
-        return Map.of("source", "postgresql", "data", views);
+        Map<String, Object> response = new HashMap<>();
+        response.put("source", "postgresql");
+        response.put("data", latest.orElse(null));
+        return response;
     }
 }

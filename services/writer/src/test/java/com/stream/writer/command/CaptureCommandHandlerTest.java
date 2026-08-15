@@ -102,4 +102,30 @@ class CaptureCommandHandlerTest {
         // then
         verify(valueOperations).set(eq("capture:latest:trail:42"), anyString());
     }
+
+    @Test
+    @DisplayName("handle() - Redis에 캐싱되는 값은 CaptureView 형태의 JSON이다 (trailId, roadStatus, confidence 포함)")
+    void handle_cachesCaptureViewShapedJson() throws Exception {
+        // given
+        CreateCaptureCommand command = new CreateCaptureCommand(1, 1, "/images/capture_001.jpg", "양호", 0.95);
+        Capture savedCapture = new Capture();
+        savedCapture.setTrailId(1);
+        savedCapture.setStreamId(1);
+        savedCapture.setImagePath("/images/capture_001.jpg");
+        savedCapture.setRoadStatus("양호");
+        savedCapture.setConfidence(0.95);
+        given(captureRepository.save(any(Capture.class))).willReturn(savedCapture);
+
+        // when
+        handler.handle(command);
+
+        // then
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(valueOperations).set(eq("capture:latest:trail:1"), captor.capture());
+
+        com.stream.shared.dto.CaptureView cached = objectMapper.readValue(captor.getValue(), com.stream.shared.dto.CaptureView.class);
+        assertThat(cached.trailId()).isEqualTo(1);
+        assertThat(cached.roadStatus()).isEqualTo("양호");
+        assertThat(cached.confidence()).isEqualTo(0.95);
+    }
 }
