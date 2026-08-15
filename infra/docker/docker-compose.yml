@@ -190,8 +190,8 @@ services:
 
   reader:
     build:
-      context: ../../services/reader
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: services/reader/Dockerfile
     container_name: stream-reader
     ports:
       - "${READER_PORT:-8001}:8080"

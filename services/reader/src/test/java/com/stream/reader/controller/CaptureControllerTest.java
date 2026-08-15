@@ -1,6 +1,6 @@
 package com.stream.reader.controller;
 
-import com.stream.reader.entity.Capture;
+import com.stream.shared.entity.Capture;
 import com.stream.reader.repository.CaptureRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

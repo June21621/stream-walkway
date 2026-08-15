@@ -1,11 +1,18 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
+WORKDIR /shared
+COPY packages/shared/mvnw packages/shared/pom.xml ./
+COPY packages/shared/.mvn .mvn
+RUN ./mvnw -q -B dependency:go-offline
+COPY packages/shared/src src
+RUN ./mvnw -q -B install -DskipTests
+
 WORKDIR /app
-COPY mvnw pom.xml ./
-COPY .mvn .mvn
+COPY services/reader/mvnw services/reader/pom.xml ./
+COPY services/reader/.mvn .mvn
 RUN ./mvnw -q -B dependency:go-offline
 
-COPY src src
+COPY services/reader/src src
 RUN ./mvnw -q -B package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine

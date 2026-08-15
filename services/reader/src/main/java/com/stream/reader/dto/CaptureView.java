@@ -1,6 +1,6 @@
 package com.stream.reader.dto;
 
-import com.stream.reader.entity.Capture;
+import com.stream.shared.entity.Capture;
 
 import java.time.LocalDateTime;
 
