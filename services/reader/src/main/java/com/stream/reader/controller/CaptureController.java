@@ -1,6 +1,6 @@
 package com.stream.reader.controller;
 
-import com.stream.reader.entity.Capture;
+import com.stream.reader.dto.CaptureView;
 import com.stream.reader.repository.CaptureRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -25,8 +25,10 @@ public class CaptureController {
     // 전체 조회 (PostgreSQL)
     // ─────────────────────────────────────────
     @GetMapping
-    public List<Capture> getAll() {
-        return captureRepository.findAll();
+    public List<CaptureView> getAll() {
+        return captureRepository.findAll().stream()
+                .map(CaptureView::from)
+                .toList();
     }
 
     // ─────────────────────────────────────────
@@ -44,7 +46,9 @@ public class CaptureController {
         }
 
         System.out.println("[reader] Redis 캐시 미스 → PostgreSQL 조회");
-        List<Capture> captures = captureRepository.findByTrailId(trailId);
-        return Map.of("source", "postgresql", "data", captures);
+        List<CaptureView> views = captureRepository.findByTrailId(trailId).stream()
+                .map(CaptureView::from)
+                .toList();
+        return Map.of("source", "postgresql", "data", views);
     }
 }
