@@ -162,8 +162,8 @@ services:
   # ================= core services =================
   writer:
     build:
-      context: ../../services/writer
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: services/writer/Dockerfile
     container_name: stream-writer
     ports:
       - "${WRITER_PORT:-8002}:8080"

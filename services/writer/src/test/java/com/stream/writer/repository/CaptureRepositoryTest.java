@@ -1,6 +1,6 @@
 package com.stream.writer.repository;
 
-import com.stream.writer.entity.Capture;
+import com.stream.shared.entity.Capture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

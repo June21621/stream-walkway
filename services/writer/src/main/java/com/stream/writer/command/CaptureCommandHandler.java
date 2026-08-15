@@ -2,7 +2,7 @@ package com.stream.writer.command;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stream.writer.entity.Capture;
+import com.stream.shared.entity.Capture;
 import com.stream.writer.repository.CaptureRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;

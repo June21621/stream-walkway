@@ -1,7 +1,7 @@
 package com.stream.writer.command;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stream.writer.entity.Capture;
+import com.stream.shared.entity.Capture;
 import com.stream.writer.repository.CaptureRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
