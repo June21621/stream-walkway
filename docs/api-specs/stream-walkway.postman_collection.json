@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Stream Walkway API",
-    "description": "MSA 기반 도로 정보 분석 시스템 API 명세서",
+    "description": "MSA 기반 하천 산책로 정보 분석 시스템 API 명세서",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
