@@ -1302,6 +1302,10 @@ import com.stream.shared.entity.Capture;
 ```
 로 교체.
 
+- [ ] **Step 3.5: WriterApplication에 @EntityScan을 추가한다 (Task 5에서 발견된 필수 수정)**
+
+Task 5(reader)에서 같은 전환을 하다가 발견된 문제: Spring Boot의 기본 엔티티 스캔은 `@SpringBootApplication` 클래스의 패키지(`com.stream.writer`)만 대상으로 하므로, `com.stream.shared.entity.Capture`를 managed JPA 엔티티로 인식하지 못해 `Not a managed type: class com.stream.shared.entity.Capture` 에러가 난다. `services/writer/src/main/java/com/stream/writer/WriterApplication.java`에 `@EntityScan`을 추가해야 한다. 이 파일을 읽고 `@SpringBootApplication` 어노테이션 바로 위에 `@EntityScan(basePackages = "com.stream.shared.entity")`를 추가하고, `import org.springframework.boot.autoconfigure.domain.EntityScan;`을 추가한다. writer에는 이제 자체 엔티티가 없으므로(Step 2에서 삭제) 공유 패키지만 스캔 대상으로 지정하면 된다.
+
 - [ ] **Step 4: writer 전체 테스트 실행 → 통과 확인**
 
 Run: `cd services/writer && ./mvnw -q -B test -Dtest='!WriterApplicationTests'`
