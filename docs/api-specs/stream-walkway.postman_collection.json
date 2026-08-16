@@ -199,6 +199,13 @@
                   "code": 201,
                   "header": [{ "key": "Content-Type", "value": "application/json" }],
                   "body": "{\n  \"id\": 1,\n  \"stream_id\": 1,\n  \"camera_number\": \"CAM-001\",\n  \"location\": \"POINT(126.97 37.55)\",\n  \"direction\": \"북\",\n  \"status\": \"active\",\n  \"created_at\": \"2024-01-01T00:00:00Z\"\n}"
+                },
+                {
+                  "name": "409 Conflict - 중복된 카메라 번호",
+                  "status": "Conflict",
+                  "code": 409,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Duplicate trail\",\n  \"message\": \"stream_id=1, camera_number=CAM-001 already exists\"\n}"
                 }
               ]
             }
