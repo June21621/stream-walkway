@@ -1,12 +1,13 @@
 package com.stream.backend.controller;
 
+import com.stream.backend.exception.StreamNotFoundException;
 import com.stream.backend.model.Stream;
 import com.stream.backend.service.StreamService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/streams")
@@ -20,20 +21,20 @@ public class StreamController {
 
     @GetMapping
     public ResponseEntity<List<Stream>> getAll() {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+        return ResponseEntity.ok(streamService.findAll());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable Long id) {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+        Stream stream = streamService.findById(id)
+                .orElseThrow(() -> new StreamNotFoundException(id));
+        return ResponseEntity.ok(stream);
     }
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Stream stream,
                                     @RequestHeader("X-Internal-Key") String internalKey) {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+        Stream created = streamService.create(stream);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }

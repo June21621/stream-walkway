@@ -13,5 +13,6 @@
         <module>packages/shared</module>
         <module>services/reader</module>
         <module>services/writer</module>
+        <module>apps/backend</module>
     </modules>
 </project>
