@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(StreamController.class)
+@org.springframework.test.context.TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("StreamController 테스트")
 class StreamControllerTest {
 
@@ -150,5 +151,22 @@ class StreamControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/streams - 잘못된 X-Internal-Key면 401 Unauthorized를 반환한다")
+    void create_returns401WithWrongInternalKey() throws Exception {
+        String requestBody = """
+                {
+                  "name": "한강 산책로",
+                  "location": "LINESTRING(126.97 37.55, 126.98 37.56)"
+                }
+                """;
+
+        mockMvc.perform(post("/api/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "wrong-key")
+                        .content(requestBody))
+                .andExpect(status().isUnauthorized());
     }
 }

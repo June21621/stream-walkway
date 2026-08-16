@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 @Table(name = "streams")
 public class Stream {
 
+    public static final int SRID = 4326;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

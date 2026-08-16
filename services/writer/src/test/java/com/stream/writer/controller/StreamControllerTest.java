@@ -65,4 +65,44 @@ class StreamControllerTest {
                 .andExpect(jsonPath("$.name").value("한강 산책로"))
                 .andExpect(jsonPath("$.location").value("LINESTRING(126.97 37.55, 126.98 37.56)"));
     }
+
+    @Test
+    @DisplayName("POST /internal/streams - 파싱 불가능한 WKT면 400 Bad Request를 반환한다")
+    void create_returns400OnUnparseableWkt() throws Exception {
+        given(streamCommandHandler.handle(any(CreateStreamCommand.class)))
+                .willThrow(new org.locationtech.jts.io.ParseException("Unknown geometry type: NOT-A-WKT"));
+
+        String requestBody = """
+                {
+                  "name": "잘못된 스트림",
+                  "location": "NOT-A-WKT"
+                }
+                """;
+
+        mockMvc.perform(post("/internal/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("POST /internal/streams - LineString이 아닌 WKT(POINT 등)면 400 Bad Request를 반환한다")
+    void create_returns400OnWrongGeometryType() throws Exception {
+        given(streamCommandHandler.handle(any(CreateStreamCommand.class)))
+                .willThrow(new ClassCastException("class org.locationtech.jts.geom.Point cannot be cast to class org.locationtech.jts.geom.LineString"));
+
+        String requestBody = """
+                {
+                  "name": "점 좌표",
+                  "location": "POINT(1 2)"
+                }
+                """;
+
+        mockMvc.perform(post("/internal/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
 }

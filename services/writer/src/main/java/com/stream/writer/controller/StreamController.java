@@ -27,4 +27,9 @@ public class StreamController {
         var saved = streamCommandHandler.handle(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(StreamView.from(saved));
     }
+
+    @ExceptionHandler({org.locationtech.jts.io.ParseException.class, ClassCastException.class})
+    public ResponseEntity<java.util.Map<String, String>> handleInvalidGeometry(Exception e) {
+        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid WKT geometry: " + e.getMessage()));
+    }
 }

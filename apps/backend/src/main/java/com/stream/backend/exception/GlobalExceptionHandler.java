@@ -15,4 +15,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("error", "Stream not found", "id", e.getId()));
     }
+
+    @ExceptionHandler(InvalidStreamGeometryException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidStreamGeometry(InvalidStreamGeometryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "Invalid stream geometry", "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidInternalKeyException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidInternalKey(InvalidInternalKeyException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Unauthorized", "message", e.getMessage()));
+    }
 }

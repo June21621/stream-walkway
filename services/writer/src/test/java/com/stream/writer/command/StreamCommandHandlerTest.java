@@ -45,6 +45,7 @@ class StreamCommandHandlerTest {
         Stream toSave = captor.getValue();
         assertThat(toSave.getName()).isEqualTo("한강 산책로");
         assertThat(toSave.getLocation().toText()).isEqualTo("LINESTRING (126.97 37.55, 126.98 37.56)");
+        assertThat(toSave.getLocation().getSRID()).isEqualTo(4326);
         assertThat(result).isEqualTo(savedStream);
     }
 

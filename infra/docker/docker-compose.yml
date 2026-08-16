@@ -88,8 +88,8 @@ services:
 
   backend:
     build:
-      context: ../../apps/backend
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
     container_name: stream-backend
     ports:
       - "${BACKEND_PORT:-8080}:8080"
@@ -103,6 +103,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      READER_BASE_URL: http://reader:8080
+      WRITER_BASE_URL: http://writer:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
     depends_on:
       postgres:
         condition: service_healthy

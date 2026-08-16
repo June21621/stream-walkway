@@ -56,12 +56,22 @@ public class StreamServiceImpl implements StreamService {
 
     @Override
     public Stream create(Stream stream) {
-        StreamView created = writerClient.post()
-                .uri("/internal/streams")
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .body(new CreateStreamRequest(stream.getName(), stream.getLocation()))
-                .retrieve()
-                .body(StreamView.class);
+        StreamView created;
+        try {
+            created = writerClient.post()
+                    .uri("/internal/streams")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new CreateStreamRequest(stream.getName(), stream.getLocation()))
+                    .retrieve()
+                    .body(StreamView.class);
+        } catch (org.springframework.web.client.HttpClientErrorException.BadRequest e) {
+            throw new com.stream.backend.exception.InvalidStreamGeometryException(
+                    "Writer rejected the stream geometry: " + e.getResponseBodyAsString());
+        }
+        if (created == null) {
+            throw new com.stream.backend.exception.InvalidStreamGeometryException(
+                    "Writer returned an empty response for stream creation");
+        }
         return toModel(created);
     }
 

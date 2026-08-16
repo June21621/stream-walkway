@@ -25,6 +25,7 @@
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-spatial</artifactId>
             <version>6.6.18.Final</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.locationtech.jts</groupId>

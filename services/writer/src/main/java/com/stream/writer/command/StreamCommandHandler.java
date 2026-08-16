@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 public class StreamCommandHandler {
 
     private final StreamRepository streamRepository;
-    private final WKTReader wktReader = new WKTReader();
+    private final WKTReader wktReader = new WKTReader(
+            new org.locationtech.jts.geom.GeometryFactory(new org.locationtech.jts.geom.PrecisionModel(), Stream.SRID));
 
     public StreamCommandHandler(StreamRepository streamRepository) {
         this.streamRepository = streamRepository;
