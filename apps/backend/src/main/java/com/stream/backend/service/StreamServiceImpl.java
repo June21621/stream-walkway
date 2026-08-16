@@ -28,7 +28,7 @@ public class StreamServiceImpl implements StreamService {
                 view.id(),
                 view.name(),
                 view.location(),
-                view.createdAt() == null ? null : view.createdAt().toString()
+                view.createdAt() == null ? null : view.createdAt().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         );
     }
 
