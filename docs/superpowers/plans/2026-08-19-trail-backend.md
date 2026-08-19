@@ -799,17 +799,71 @@ git commit -m "feat(backend): TrailController 구현 - RED 테스트 GREEN 전�
 
 ---
 
-## 후속 작업 (이 계획엔 포함 안 함, 참고용)
+## Task 4 (계획 외 추가, 최종 브랜치 리뷰에서 발견): CaptureServiceImpl 스텁 추가
 
-- **Capture 게이트웨이 연동**: `apps/backend`의 `CaptureController`/`CaptureService`도 여전히 RED 스텁이다. Trail과 같은 패턴이지만 별도 계획으로 처리한다.
-- **Docker 실기동 검증**: 이 세션 환경엔 Docker 데몬이 없어 정적 검토로만 확인했다. 실제 `docker compose up`으로 `apps/backend → services/reader/writer` 전체 흐름을 검증할 필요가 있다.
+**이 태스크는 원래 계획에 없었다.** Task 1~3 완료 후 전체 브랜치 최종 리뷰(Opus)에서, `apps/backend`가 애초에 컨텍스트 로드조차 안 되는 상태라는 사실이 발견됐다 — `CaptureController`가 `CaptureService`를 생성자로 요구하는데 이를 구현하는 `CaptureServiceImpl`이 저장소 어디에도 없어서 Spring이 빈을 못 찾고 부팅에 실패했다.
 
-## 최종 검증
+이 문제 자체는 `main`에 이미 있던 사전 존재 이슈였고(Capture backend 연동이 원래 한 번도 구현된 적이 없었음) Task 1~3의 Trail 코드와는 무관했지만, 그 결과 "Trail 엔드포인트가 실제로 살아있다"는 이 계획의 목표 자체가 무색해지는 상태였다(서비스가 아예 안 뜨니까). 그래서 사용자 확인 후 최소 범위로 즉시 수정했다.
 
-- [ ] **backend 전체 테스트 재실행**
+**Files:**
+- Create: `apps/backend/src/main/java/com/stream/backend/service/CaptureServiceImpl.java`
 
-```bash
-cd apps/backend && ./mvnw -q -B test -Dtest='!CaptureControllerTest,!BackendApplicationTests'
+**내용**: `CaptureService` 인터페이스의 `findAll(...)`/`findById(...)`를 그대로 구현하되, 둘 다 `throw new UnsupportedOperationException("Not implemented")`만 던지는 스텁(`CaptureController`의 기존 RED 스텁 메서드와 동일한 관례). `@Service`로 등록해서 Spring이 빈을 찾을 수 있게 하는 게 유일한 목적 — 실제 Capture 비즈니스 로직 구현은 아니며, `CaptureController` 자체는 건드리지 않았다.
+
+- [ ] **Step 1: CaptureServiceImpl 작성**
+
+```java
+package com.stream.backend.service;
+
+import com.stream.backend.model.Capture;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class CaptureServiceImpl implements CaptureService {
+
+    @Override
+    public List<Capture> findAll(Long streamId, Long trailId, Integer limit, String sort) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public Optional<Capture> findById(Long id) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+}
 ```
 
-Expected: GREEN. (`CaptureControllerTest`는 Capture 게이트웨이 미구현으로 RED가 정상, `BackendApplicationTests`는 Capture 스텁 잔존으로 컨텍스트 로드가 실패할 수 있어 이 계획 범위에서는 제외 — 실행 결과에 따라 배제 목록을 조정할 것)
+- [ ] **Step 2: 검증**
+
+Run: `cd apps/backend && ./mvnw -q -B test -Dtest=BackendApplicationTests`
+Expected: PASS (이전엔 빈 누락으로 실패하던 컨텍스트 로드가 이제 성공)
+
+Run: `cd apps/backend && ./mvnw -q -B test`
+Expected: `CaptureControllerTest`만 여전히 실패(정상 — `CaptureController` 자체는 안 건드렸으므로 그대로 RED), 나머지 전부(`HealthCheckTest`/`StreamControllerTest`/`StreamServiceImplTest`/`TrailControllerTest`/`TrailServiceImplTest`/`BackendApplicationTests`) PASS
+
+- [ ] **Step 3: 커밋**
+
+```bash
+git add apps/backend/src/main/java/com/stream/backend/service/CaptureServiceImpl.java
+git commit -m "fix(backend): CaptureServiceImpl 스텁 추가 - apps/backend 컨텍스트 로드 실패(누락된 Bean) 해결"
+```
+
+---
+
+## 후속 작업 (이 계획엔 포함 안 함, 참고용)
+
+- **Capture 게이트웨이 연동**: `apps/backend`의 `CaptureController`는 여전히 RED 스텁이다(Task 4는 컨텍스트 로드만 되게 한 것일 뿐, 실제 Capture 로직은 없음). Trail과 같은 패턴이지만 별도 계획으로 처리한다.
+- **Docker 실기동 검증**: 이 세션 환경엔 Docker 데몬이 없어 정적 검토로만 확인했다. 실제 `docker compose up`으로 `apps/backend → services/reader/writer` 전체 흐름을 검증할 필요가 있다.
+
+## 최종 검증 (실제로 실행한 결과)
+
+- [x] **backend 전체 테스트 재실행**
+
+```bash
+cd apps/backend && ./mvnw -q -B test -Dtest='!CaptureControllerTest'
+```
+
+Result: GREEN — 31/31 통과 (`BackendApplicationTests` 포함, Task 4 덕분에 이제 제외할 필요 없이 통과). `CaptureControllerTest`만 여전히 RED(Capture 게이트웨이 미구현, 범위 밖, 정상).
