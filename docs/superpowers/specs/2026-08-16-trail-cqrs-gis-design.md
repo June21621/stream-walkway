@@ -162,7 +162,7 @@ Stream 때와 동일한 계층별 커버리지, `mvnw clean test`로 매번 검�
 | backend | `TrailControllerTest` (기존, RED→GREEN 전환) | 기존 7개 테스트 통과 확인 |
 | backend | `TrailServiceImplTest` (신규) | RestClient 호출 매핑, 예외 변환(404/400/409) |
 
-**H2 테스트 스키마**: `services/reader/src/test/resources/schema.sql`, `services/writer/src/test/resources/schema.sql`에 `trails` 테이블 DDL 추가 필요 (현재 `captures`만 정의되어 있음, H2는 PostGIS 없이 `geometry` 타입을 직접 지원하지 않으므로 Stream 때 썼던 것과 동일한 H2용 컬럼 타입 처리 방식을 따른다).
+**H2 테스트 스키마 변경 불필요**: 확인 결과 Stream 구현 때도 `StreamRepository`에 대한 `@DataJpaTest`(H2 실접속) 테스트는 작성되지 않았다 — 모든 Stream 테스트는 순수 단위 테스트(Mockito `@Mock`) 또는 `@WebMvcTest`(`@MockBean`으로 리포지토리 목업)였다. `services/{reader,writer}/src/test/resources/schema.sql`은 `captures` 테이블만 정의하고 있고 Stream 작업에서 손대지 않았음. Trail도 동일한 패턴을 따라 리포지토리는 목업으로만 테스트하고 H2 스키마는 수정하지 않는다.
 
 **범위 밖으로 유지**: Postgres/PostGIS 실통합 테스트(Testcontainers) — Stream 계획에서도 명시적으로 범위 밖으로 뒀던 것과 동일한 이유(이번 세션에서 별도로 진행하기로 한 Docker 실기동 검증 단계에서 확인).
 
@@ -177,3 +177,8 @@ Stream 때와 동일한 계층별 커버리지, `mvnw clean test`로 매번 검�
 3. **`stream_id` 조회 필터**: 선택적 쿼리 파라미터. 없으면 전체 Trail 반환, 있으면 필터링 (기존 backend RED 테스트 `getAll_returns200WithTrailList`가 `findAll(null)`을 기대하는 것과 일치)
 4. **작업 공간**: 워크트리 없이 `main`에서 직접 진행 (Stream 때와 동일)
 5. **자체 리뷰에서 발견한 기존 버그**: `apps/backend`의 기존 커밋된 `TrailController` RED 스텁이 `@RequestParam(required = false) Long streamId`로 `value`를 지정하지 않아 `?stream_id=1` 쿼리와 바인딩되지 않는 문제가 있었음. 구현 시 `value = "stream_id"`를 추가해서 수정한다 (기존 RED 테스트가 검증하려던 동작과 일치시키는 수정이므로 "고정 계약 불변" 원칙에 위배되지 않음).
+6. **기존 `TrailControllerTest`(backend)에 `@TestPropertySource` 추가 필요**: 이 테스트 파일은 2026-03-09에 작성되어 `X-Internal-Key` 값이 실제로 맞는지는 검증하지 않는다(헤더 존재 여부만 확인). Stream의 실제 키 비교 로직(`!internalApiKey.equals(internalKey)`)을 Trail에도 동일하게 적용하려면, 이미 존재하는 `StreamControllerTest`(backend)처럼 `@TestPropertySource(properties = "internal.api-key=test-internal-key")`를 추가하고 "잘못된 키면 401" 테스트도 함께 추가해야 한다. Stream 쪽 파일에도 이미 반영된 패턴이라 "고정 계약"을 깨는 게 아니라 기존에 없던 테스트 커버리지를 보강하는 것으로 취급한다.
+7. **구현 계획을 2개로 분리, 별도 브랜치로 진행**: 이 설계 문서 자체는 4개 모듈(shared/writer/reader/backend)을 함께 다루지만, 실제 구현 계획(`docs/superpowers/plans/`)과 git 브랜치는 다음과 같이 나눠서 진행한다.
+   - **Plan A — "Trail DB 계층" (`packages/shared` + `services/writer` + `services/reader`)**: 브랜치 `feature/trail-cqrs`에서 지금 바로 진행. 이 문서의 "packages/shared", "Writer", "Reader" 섹션에 해당.
+   - **Plan B — "Trail backend 게이트웨이 연동"**: `apps/backend`(`TrailServiceImpl`/`TrailController` 구현, 새 예외 3개, `GlobalExceptionHandler` 확장)는 별도 브랜치에서 나중에 진행. 이 문서의 "Backend" 섹션에 해당. `apps/backend`는 DB에 직접 접근하지 않고 reader/writer를 HTTP로 호출만 하므로 Plan A와 독립적으로 나눌 수 있음(Stream 계획의 Task 1~4 vs Task 5 경계와 동일).
+   - 이 설계 문서(스펙)는 그대로 두고, 계획 문서만 두 개(Plan A/B)로 나눠서 작성한다.
