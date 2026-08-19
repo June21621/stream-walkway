@@ -15,12 +15,12 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(TrailController.class)
+@org.springframework.test.context.TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("TrailController 테스트")
 class TrailControllerTest {
 
@@ -172,5 +172,27 @@ class TrailControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/trails - 잘못된 X-Internal-Key면 401 Unauthorized를 반환한다")
+    void create_returns401WithWrongInternalKey() throws Exception {
+        // given
+        String requestBody = """
+                {
+                  "stream_id": 1,
+                  "camera_number": "CAM-001",
+                  "location": "POINT(126.97 37.55)",
+                  "direction": "북",
+                  "status": "active"
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(post("/api/trails")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "wrong-key")
+                        .content(requestBody))
+                .andExpect(status().isUnauthorized());
     }
 }

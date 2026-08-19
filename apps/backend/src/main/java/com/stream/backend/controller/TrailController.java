@@ -1,7 +1,11 @@
 package com.stream.backend.controller;
 
+import com.stream.backend.exception.InvalidInternalKeyException;
+import com.stream.backend.exception.TrailNotFoundException;
 import com.stream.backend.model.Trail;
 import com.stream.backend.service.TrailService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,27 +16,33 @@ import java.util.List;
 public class TrailController {
 
     private final TrailService trailService;
+    private final String internalApiKey;
 
-    public TrailController(TrailService trailService) {
+    public TrailController(TrailService trailService,
+                            @Value("${internal.api-key}") String internalApiKey) {
         this.trailService = trailService;
+        this.internalApiKey = internalApiKey;
     }
 
     @GetMapping
-    public ResponseEntity<List<Trail>> getAll(@RequestParam(required = false) Long streamId) {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+    public ResponseEntity<List<Trail>> getAll(@RequestParam(value = "stream_id", required = false) Long streamId) {
+        return ResponseEntity.ok(trailService.findAll(streamId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable Long id) {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+        Trail trail = trailService.findById(id)
+                .orElseThrow(() -> new TrailNotFoundException(id));
+        return ResponseEntity.ok(trail);
     }
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Trail trail,
                                     @RequestHeader("X-Internal-Key") String internalKey) {
-        // TODO: 구현 필요 (TDD - RED 단계)
-        throw new UnsupportedOperationException("Not implemented");
+        if (!internalApiKey.equals(internalKey)) {
+            throw new InvalidInternalKeyException();
+        }
+        Trail created = trailService.create(trail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }
