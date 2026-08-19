@@ -2,6 +2,7 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
+> 최종 갱신: 2026-08-16 — Stream 도메인 GREEN 전환 반영 (`docs/superpowers/plans/2026-08-15-stream-cqrs-gis.md` 참고). 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
 
 ---
 
@@ -40,7 +41,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | 파일 | 방식 | 테스트 수 | 상태 |
 |------|------|-----------|------|
 | `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | GREEN |
-| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | RED |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | GREEN (2026-08-16) |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | RED |
 | `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | RED |
 
@@ -129,31 +130,29 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 | 서비스 | 전체 테스트 수 | GREEN | RED |
 |--------|-------------|-------|-----|
-| backend | 21 | 3 | 18 |
+| backend | 21 | 9 | 12 |
 | youtube-service | 22 | 11 | 11 |
 | ml-service | 27 | 13 | 14 |
 | reader | 26 | 26 | 0 |
 | writer | 26 | 26 | 0 |
-| **합계** | **122** | **79** | **43** |
+| **합계** | **122** | **85** | **37** |
+
+> backend GREEN 9개 = 초기 스텁 시절 GREEN이던 3개(HealthCheckTest) + Stream CQRS 계획 완료로 전환된 6개(StreamControllerTest). reader/writer의 Stream 관련 테스트(`StreamCommandHandlerTest`, `StreamControllerTest` 등 총 7개)는 스텁 생성 당시 존재하지 않았던 신규 파일이라 이 표에는 포함되지 않음 — 상세는 `docs/superpowers/plans/2026-08-15-stream-cqrs-gis.md` 참고.
 
 ---
 
 ## RED 테스트 상세 — 구현이 필요한 항목
 
-### Backend — 18개 RED
+### Backend — 12개 RED (Stream 관련 4개 항목은 2026-08-16 GREEN 전환되어 아래 표에서 제거됨)
 
 | 대상 | 필요한 구현 |
 |------|-----------|
-| `StreamController.getAll()` | StreamService.findAll() 호출 후 200 반환 |
-| `StreamController.getById()` | StreamService.findById() 호출, 없으면 404 + `{"error": "Stream not found", "id": N}` |
-| `StreamController.create()` | X-Internal-Key 검증, StreamService.create() 호출 후 201 반환 |
-| `TrailController.getAll()` | stream_id 필터 포함, TrailService.findAll() 호출 후 200 반환 |
+| `TrailController.getAll()` | stream_id 필터 포함, TrailService.findAll() 호출 후 200 반환 (설계 완료: `docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`) |
 | `TrailController.getById()` | TrailService.findById() 호출, 없으면 404 + `{"error": "Trail not found", "id": N}` |
 | `TrailController.create()` | X-Internal-Key 검증, TrailService.create() 호출 후 201 반환 |
 | `CaptureController.getAll()` | stream_id, trail_id, limit, sort 파라미터 처리 후 200 반환 |
 | `CaptureController.getById()` | CaptureService.findById() 호출, 없으면 404 + `{"error": "Capture not found", "id": N}` |
-| `StreamService` 구현체 | 인터페이스 구현 (DB 연동 포함) |
-| `TrailService` 구현체 | 인터페이스 구현 (DB 연동 포함) |
+| `TrailService` 구현체 | 인터페이스 구현 (DB 연동 포함, 설계 완료) |
 | `CaptureService` 구현체 | 인터페이스 구현 (DB 연동 포함) |
 
 ### YouTube Service — 11개 RED
@@ -187,8 +186,9 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
    - app.js의 GET /status/:jobId 구현
 
 3. Backend
-   - @ControllerAdvice 에러 핸들러 추가 (404 body 반환)
-   - StreamService, TrailService, CaptureService 구현체 작성
-   - 각 Controller에서 서비스 호출하도록 구현
-   - pom.xml에 JPA, PostgreSQL 의존성 추가 (DB 연동 시)
+   - @ControllerAdvice 에러 핸들러 추가 (404 body 반환) — 완료 (Stream 기준)
+   - StreamService 구현체 작성 — 완료 (2026-08-16, RestClient 기반 reader/writer 연동)
+   - TrailService 구현체 작성 — 설계 완료, 구현 대기 (`docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`)
+   - CaptureService 구현체 작성 — 미착수
+   - 각 Controller에서 서비스 호출하도록 구현 — Stream 완료, Trail/Capture 남음
 ```
