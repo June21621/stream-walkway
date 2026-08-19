@@ -46,8 +46,12 @@ public class TrailCommandHandler {
         try {
             return trailRepository.save(trail);
         } catch (DataIntegrityViolationException e) {
-            throw new DuplicateTrailException(
-                    "stream_id=" + command.streamId() + ", camera_number=" + command.cameraNumber() + " already exists");
+            String message = e.getMostSpecificCause().getMessage();
+            if (message != null && message.contains("trails_stream_id_camera_number_key")) {
+                throw new DuplicateTrailException(
+                        "stream_id=" + command.streamId() + ", camera_number=" + command.cameraNumber() + " already exists");
+            }
+            throw e;
         }
     }
 }

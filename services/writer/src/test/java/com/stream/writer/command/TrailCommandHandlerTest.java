@@ -91,15 +91,30 @@ class TrailCommandHandlerTest {
     }
 
     @Test
-    @DisplayName("handle() - 저장 시 UNIQUE 제약 위반이면 DuplicateTrailException을 던진다")
+    @DisplayName("handle() - 저장 시 UNIQUE(stream_id, camera_number) 제약 위반이면 DuplicateTrailException을 던진다")
     void handle_throwsDuplicateTrailExceptionOnConstraintViolation() {
         // given
         CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-001", "POINT(126.97 37.55)", "북", "active");
-        willThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"))
+        willThrow(new DataIntegrityViolationException("insert failed",
+                new RuntimeException("duplicate key value violates unique constraint \"trails_stream_id_camera_number_key\"")))
                 .given(trailRepository).save(any(Trail.class));
 
         // when & then
         org.junit.jupiter.api.Assertions.assertThrows(
                 DuplicateTrailException.class, () -> handler.handle(command));
+    }
+
+    @Test
+    @DisplayName("handle() - UNIQUE(stream_id, camera_number) 위반이 아닌 다른 무결성 위반은 DataIntegrityViolationException을 그대로 던진다")
+    void handle_rethrowsDataIntegrityViolationExceptionOnOtherConstraintViolation() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-001", "POINT(126.97 37.55)", "북", "active");
+        willThrow(new DataIntegrityViolationException("insert failed",
+                new RuntimeException("insert or update on table \"trails\" violates foreign key constraint \"trails_stream_id_fkey\"")))
+                .given(trailRepository).save(any(Trail.class));
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                DataIntegrityViolationException.class, () -> handler.handle(command));
     }
 }
