@@ -27,4 +27,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("error", "Unauthorized", "message", e.getMessage()));
     }
+
+    @ExceptionHandler(TrailNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleTrailNotFound(TrailNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Trail not found", "id", e.getId()));
+    }
+
+    @ExceptionHandler(InvalidTrailGeometryException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidTrailGeometry(InvalidTrailGeometryException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "Invalid trail data", "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateTrailException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateTrail(DuplicateTrailException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "Duplicate trail", "message", e.getMessage()));
+    }
 }
