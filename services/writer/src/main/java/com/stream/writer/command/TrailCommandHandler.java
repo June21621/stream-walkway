@@ -12,6 +12,7 @@ import org.locationtech.jts.io.WKTReader;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
 import java.util.Set;
 
 @Component
@@ -36,6 +37,13 @@ public class TrailCommandHandler {
     //
     // UNIQUE(stream_id, camera_number) 위반은 DuplicateTrailException(409)으로,
     // FK(trails_stream_id_fkey) 위반은 IllegalArgumentException(400)으로 변환한다.
+    //
+    // 제약 이름 비교는 대소문자를 구분하지 않는다. SQL 식별자가 원래 대소문자를
+    // 가리지 않을 뿐 아니라, 실제로 두 엔진이 다른 형태로 출력하기 때문이다.
+    // PostgreSQL: ...violates foreign key constraint "trails_stream_id_fkey" (소문자)
+    // H2:         "TRAILS_STREAM_ID_FKEY: PUBLIC.TRAILS FOREIGN KEY(...)"    (대문자)
+    // UNIQUE 검사를 FK보다 먼저 하는데, 두 엔진 모두에서 안전하다 —
+    // FK 위반 메시지에는 TRAILS_STREAM_ID_CAMERA_NUMBER_KEY가 들어가지 않는다.
     //
     // FK catch가 실제로 정확성을 보장하는 쪽이고, 위의 존재 확인은 흔한 경우를
     // DB 에러 문자열 파싱 없이 걸러내는 위생 계층이다.
@@ -82,11 +90,12 @@ public class TrailCommandHandler {
             return trailRepository.save(trail);
         } catch (DataIntegrityViolationException e) {
             String message = e.getMostSpecificCause().getMessage();
-            if (message != null && message.contains("trails_stream_id_camera_number_key")) {
+            String upper = message == null ? "" : message.toUpperCase(Locale.ROOT);
+            if (upper.contains("TRAILS_STREAM_ID_CAMERA_NUMBER_KEY")) {
                 throw new DuplicateTrailException(
                         "stream_id=" + command.streamId() + ", camera_number=" + command.cameraNumber() + " already exists");
             }
-            if (message != null && message.contains("trails_stream_id_fkey")) {
+            if (upper.contains("TRAILS_STREAM_ID_FKEY")) {
                 throw new IllegalArgumentException("stream_id=" + command.streamId() + " does not exist");
             }
             throw e;
