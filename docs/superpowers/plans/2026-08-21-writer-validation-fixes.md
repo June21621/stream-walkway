@@ -239,7 +239,7 @@ Run:
 ```bash
 cd services/writer && ./mvnw -q -B test -Dtest=StreamCommandHandlerTest,TrailCommandHandlerTest,StreamControllerTest,TrailControllerTest
 ```
-Expected: PASS 전부 (Stream 7개, Trail 7개, writer StreamControllerTest 4개, writer TrailControllerTest 5개)
+Expected: PASS 전부 (Stream 3개, Trail 7개, writer StreamControllerTest 4개, writer TrailControllerTest 5개)
 
 - [ ] **Step 9: writer 전체 테스트 실행 → 회귀 없는지 확인**
 
@@ -403,7 +403,7 @@ Expected: 새로 추가한 5개 중 `handle_throwsIllegalArgumentExceptionOnNull
 - [ ] **Step 6: 테스트 실행 → 통과 확인**
 
 Run: `cd services/writer && ./mvnw -q -B test -Dtest=StreamCommandHandlerTest,TrailCommandHandlerTest`
-Expected: PASS 전부 (Stream 8개, Trail 10개)
+Expected: PASS 전부 (Stream 5개, Trail 10개)
 
 - [ ] **Step 7: writer 전체 테스트 실행 → 회귀 없는지 확인**
 
@@ -667,6 +667,10 @@ git commit -m "fix(shared,writer): WKTReader/WKTWriter 싱글턴 공유 상태 �
 - **`created_at`에 타임존 정보 없는 문제**: `StreamView`/`TrailView`의 `createdAt`을 `LocalDateTime` → `Instant`로 바꾸는 별도 계획 필요. `packages/shared`(엔티티+DTO), `services/reader`/`services/writer`(테스트 픽스처), `apps/backend`(ServiceImpl의 포맷팅 로직 + 테스트) 총 16개 파일에 걸친 큰 작업.
 - **Capture 도메인의 동일 패턴**: `Capture` 엔티티도 `createdAt`을 갖고 있어 위와 같은 문제가 있을 수 있으나 범위 밖으로 남겨둠 (Stream 최종 리뷰 때도 동일하게 유보).
 - **writer의 `@ExceptionHandler`를 `@RestControllerAdvice`로 승격**: 지금은 `StreamController`/`TrailController` 각자 컨트롤러 로컬 핸들러를 갖고 있어서 로직이 거의 동일하게 두 곳에 있다. 통합할 수 있지만 이번 계획의 버그 수정과는 결이 달라 범위 밖으로 둠.
+- **`apps/backend`의 Stream 에러 메시지가 이제 부정확함** (최종 브랜치 리뷰에서 발견): `GlobalExceptionHandler`의 `"Invalid stream geometry"`/`StreamServiceImpl`의 `"Writer rejected the stream geometry: "`는 이번 Task 1에서 writer 쪽 메시지를 `"Invalid stream data: "`로 바꾼 것과 더 이상 안 맞음 — writer의 400이 이제 geometry뿐 아니라 `name` 누락도 의미할 수 있음. Trail 쪽은 이미 일반적인 문구(`"Invalid trail data"`)라 Stream/Trail 비대칭이기도 함. `apps/backend`는 이번 계획 범위 밖이라 다음 backend 작업 때 같이 처리.
+- **`CaptureCommandHandler`도 필수 필드(NOT NULL) 검증 없음**: `captures.trail_id`/`stream_id`/`image_path`가 DB NOT NULL인데 애플리케이션 레벨 체크가 없음. 다만 Capture는 Kafka 컨슈머 경로라 "400 대신 500" 프레이밍이 그대로 적용되진 않고, 컨슈머 쪽 예외 처리 문제가 됨 — Capture 도메인 자체가 이번 계획 범위 밖이라 별도 후속 작업으로.
+- **공백 문자열(`"   "`) 케이스 테스트 없음**: `isBlank()` 체크는 구현되어 있지만 `null` 케이스만 테스트하고 공백 문자열 케이스는 테스트 안 함. Stream/Trail 둘 다 동일하게 비어있어서 비대칭은 아님, 우선순위 낮음.
+- **`GeometryFactory`/`PrecisionModel` 공유 검토**: 이 둘은 불변이라 스레드 안전한데, `WKTReader`와 묶어서 매 호출 지역 변수로 만들었음. `private static final GeometryFactory` + 호출마다 `WKTReader`만 새로 만드는 방식도 가능하나, 지금 코드가 더 읽기 쉽고 할당 비용도 무시할 수준이라 우선순위 낮은 취향 차이.
 - **writer 빈 응답을 502로 매핑**: `apps/backend`의 `TrailServiceImpl`/`StreamServiceImpl`이 writer로부터 빈 응답을 받으면 지금은 400으로 처리하는데, 서버 쪽 문제이니 502가 더 정확하다는 지적이 있었음. 구조 개선 성격이라 범위 밖으로 둠.
 
 ## 최종 검증
