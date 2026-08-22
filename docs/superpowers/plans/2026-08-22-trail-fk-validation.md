@@ -352,11 +352,58 @@ git commit -m "docs: Trail FK 검증 수정의 Docker 실기동 결과 기록"
 
 ## 최종 검증
 
-- [ ] **writer 전체 테스트 + Docker 실기동 결과**
+- [x] **writer 전체 테스트 + Docker 실기동 결과**
 
 ```bash
 cd services/writer && ./mvnw -B test -Dtest='!WriterApplicationTests'
 ```
 Expected: GREEN.
+실제 결과: `Tests run: 46, Failures: 0, Errors: 0, Skipped: 0` — GREEN. `BUILD SUCCESS`.
 
-Docker 실기동 결과(Task 2 Step 4/5/6)는 Task 2 Step 8에서 이 자리에 기록한다.
+### Docker 실기동 결과 (2026-08-22)
+
+writer 이미지를 재빌드(`docker compose ... up -d --build`)해서 Task 1의 수정이 반영된 상태로 스택을 새로 올린 뒤 검증했다. Step 3에서 새 stream(`id=2`)을 만들어 사용했다.
+
+**Step 4: 존재하지 않는 stream_id(999999)로 Trail 생성**
+
+Request:
+```bash
+curl -s -w "\nHTTP %{http_code}\n" -X POST http://localhost:8080/api/trails \
+  -H "Content-Type: application/json" -H "X-Internal-Key: dev-internal-key-change-me" \
+  --data-binary '{"stream_id":999999,"camera_number":"CAM-FK-TEST","location":"POINT(126.97 37.55)","direction":"N","status":"active"}'
+```
+
+Response:
+```
+{"error":"Invalid trail data","message":"Writer rejected the trail data: {\"error\":\"Invalid trail data: stream_id=999999 does not exist\"}"}
+HTTP 400
+```
+
+수정 전에는 `{"timestamp":...,"status":500,"error":"Internal Server Error"}`였던 자리가 이제 `999999`와 `does not exist`를 포함한 명확한 400으로 바뀌었다. **이번 수정의 핵심 확인 완료.**
+
+**Step 5: 정상 생성 (회귀 방지)**
+
+Request body (`$SID=2`):
+```json
+{"stream_id":2,"camera_number":"CAM-FK-OK","location":"POINT(126.97 37.55)","direction":"N","status":"active"}
+```
+
+Response:
+```
+{"id":4,"location":"POINT(126.97 37.55)","direction":"N","status":"active","stream_id":2,"camera_number":"CAM-FK-OK","created_at":"2026-08-22T11:59:36.144927261Z"}
+HTTP 201
+```
+
+정상 생성 여전히 동작. `created_at`이 `Z`로 끝남.
+
+**Step 6: 중복 409 (회귀 방지)**
+
+같은 요청을 한 번 더 전송:
+
+Response:
+```
+{"error":"Duplicate trail","message":"Writer rejected duplicate trail: {\"error\":\"Duplicate trail\",\"message\":\"stream_id=2, camera_number=CAM-FK-OK already exists\"}"}
+HTTP 409
+```
+
+UNIQUE(stream_id, camera_number) 처리도 그대로 동작. 세 시나리오 모두 기대한 대로 통과했다.
