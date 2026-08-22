@@ -1,13 +1,17 @@
 package com.stream.writer.repository;
 
 import com.stream.shared.entity.Capture;
+import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,7 +73,7 @@ class CaptureRepositoryTest {
     }
 
     @Test
-    @DisplayName("save() - 저장 시 @PrePersist에 의해 createdAt이 자동 설정되고, DB 왕복 후에도 같은 시각이다")
+    @DisplayName("save() - 저장 시 @PrePersist로 createdAt이 자동 설정되고, DB 왕복 후에도 같은 시각이며, created_at 컬럼이 실제로 TIMESTAMPTZ임을 raw JDBC 타입으로 증명한다")
     void save_setsCreatedAtViaPrePersist() {
         Capture capture = buildCapture(1, 1, "/images/cap_001.jpg");
         assertThat(capture.getCreatedAt()).isNull(); // 저장 전에는 null
@@ -82,13 +86,33 @@ class CaptureRepositoryTest {
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getCreatedAt()).isBetween(before, after);
 
-        // DB를 실제로 왕복시켜 TIMESTAMPTZ 컬럼이 Instant를 밀지 않는지 확인한다.
-        // isNotNull()만 보던 이전 버전은 타임존이 어긋나도 통과했다.
+        // DB를 실제로 왕복시켜 Instant 값이 유지되는지 확인한다.
+        // 단, 같은 JVM·같은 H2 세션 안에서는 write/read에 JVM 기본 타임존 변환이
+        // 대칭적으로 적용되므로, 이 왕복 비교만으로는 컬럼이 TIMESTAMP인지
+        // TIMESTAMP WITH TIME ZONE인지 구분할 수 없다. 그 구분은 아래 raw JDBC 검증이 한다.
         Instant inMemory = saved.getCreatedAt();
         entityManager.clear();
         Capture reloaded = captureRepository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getCreatedAt()).isBetween(before, after);
         assertThat(reloaded.getCreatedAt().getEpochSecond()).isEqualTo(inMemory.getEpochSecond());
+
+        // created_at 컬럼이 실제로 TIMESTAMP WITH TIME ZONE인지는 raw JDBC 값의 런타임 타입으로 확인한다.
+        // H2에서 TIMESTAMP WITH TIME ZONE 컬럼은 OffsetDateTime으로 읽히지만 평범한 TIMESTAMP
+        // 컬럼은 그렇지 않으므로, 이 단언은 스키마가 TIMESTAMP로 되돌아가면 실제로 실패하는
+        // 진짜 판별 기준이다.
+        Object rawCreatedAt = entityManager.getEntityManager()
+                .unwrap(Session.class)
+                .doReturningWork(connection -> {
+                    try (PreparedStatement stmt = connection.prepareStatement(
+                            "SELECT created_at FROM captures WHERE id = ?")) {
+                        stmt.setLong(1, saved.getId());
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            rs.next();
+                            return rs.getObject("created_at");
+                        }
+                    }
+                });
+        assertThat(rawCreatedAt).isInstanceOf(OffsetDateTime.class);
     }
 
     // ─────────────────────────────────────────
