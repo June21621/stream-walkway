@@ -29,7 +29,7 @@ class CaptureRepositoryTest {
     @DisplayName("findByTrailId() - 해당 trailId를 가진 캡처 목록을 반환한다")
     @Sql(statements = {
             "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_001.jpg', '양호', 0.95, NOW())",
-            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_002.jpg', '보통', 0.80, NOW())"
+            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_002.jpg', '주의', 0.80, NOW())"
     })
     void findByTrailId_returnsMatchingCaptures() {
         List<Capture> result = captureRepository.findByTrailId(1);
@@ -42,7 +42,7 @@ class CaptureRepositoryTest {
     @DisplayName("findByTrailId() - 다른 trailId의 캡처는 포함하지 않는다")
     @Sql(statements = {
             "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_001.jpg', '양호', 0.95, NOW())",
-            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 1, '/images/cap_002.jpg', '보통', 0.80, NOW())"
+            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 1, '/images/cap_002.jpg', '주의', 0.80, NOW())"
     })
     void findByTrailId_excludesOtherTrailIds() {
         List<Capture> result = captureRepository.findByTrailId(1);
@@ -81,7 +81,7 @@ class CaptureRepositoryTest {
     @DisplayName("findByStreamId() - 해당 streamId를 가진 캡처 목록을 반환한다")
     @Sql(statements = {
             "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_001.jpg', '양호', 0.95, NOW())",
-            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 1, '/images/cap_002.jpg', '보통', 0.80, NOW())"
+            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 1, '/images/cap_002.jpg', '주의', 0.80, NOW())"
     })
     void findByStreamId_returnsMatchingCaptures() {
         List<Capture> result = captureRepository.findByStreamId(1);
@@ -94,7 +94,7 @@ class CaptureRepositoryTest {
     @DisplayName("findByStreamId() - 다른 streamId의 캡처는 포함하지 않는다")
     @Sql(statements = {
             "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_001.jpg', '양호', 0.95, NOW())",
-            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 2, '/images/cap_002.jpg', '보통', 0.80, NOW())"
+            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 2, '/images/cap_002.jpg', '주의', 0.80, NOW())"
     })
     void findByStreamId_excludesOtherStreamIds() {
         List<Capture> result = captureRepository.findByStreamId(1);
@@ -119,7 +119,7 @@ class CaptureRepositoryTest {
     @DisplayName("findAll() - 저장된 전체 캡처 목록을 반환한다")
     @Sql(statements = {
             "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (1, 1, '/images/cap_001.jpg', '양호', 0.95, NOW())",
-            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 2, '/images/cap_002.jpg', '보통', 0.80, NOW())"
+            "INSERT INTO captures (trail_id, stream_id, image_path, road_status, confidence, created_at) VALUES (2, 2, '/images/cap_002.jpg', '주의', 0.80, NOW())"
     })
     void findAll_returnsAllCaptures() {
         List<Capture> result = captureRepository.findAll();
