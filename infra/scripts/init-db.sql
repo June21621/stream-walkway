@@ -1,3 +1,9 @@
+-- ⚠️ 이 스크립트는 Postgres 데이터 볼륨이 비어있을 때만 실행됩니다.
+-- 2026-08-22부로 created_at/updated_at 컬럼이 TIMESTAMP → TIMESTAMPTZ로 변경되었습니다.
+-- 그 이전에 만든 볼륨을 그대로 재사용하면 이 스크립트가 다시 실행되지 않아 옛 TIMESTAMP 컬럼이 남고,
+-- Instant 값이 세션 TimeZone 기준으로 조용히 시간이 밀려 저장됩니다(에러 없음, 데이터만 틀어짐).
+-- 기존 볼륨이 있다면 `docker compose ... down -v` 로 지운 뒤 다시 up 하세요.
+
 -- PostGIS extension 활성화 (GEOMETRY 타입 사용)
 CREATE EXTENSION IF NOT EXISTS postgis;
 

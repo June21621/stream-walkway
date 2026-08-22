@@ -106,6 +106,9 @@ docker-compose up -d
 # 각 서비스 실행 (추후 업데이트 예정)
 ```
 
+> ⚠️ 2026-08-22 이전에 만든 Postgres 볼륨이 있다면 `docker compose down -v` 로 지운 뒤 다시 올려주세요.
+> `created_at`/`updated_at` 컬럼이 `TIMESTAMPTZ`로 바뀌어서, 기존 볼륨을 그대로 쓰면 스키마가 갱신되지 않습니다.
+
 ## 개발 가이드
 
 자세한 개발 가이드는 [docs/](./docs/) 폴더를 참고하세요.

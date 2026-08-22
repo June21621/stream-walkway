@@ -908,6 +908,10 @@ git commit -m "fix(infra): created_at/updated_at 컬럼을 TIMESTAMPTZ로 변경
 - **`apps/backend`의 Stream 에러 메시지 불일치**: 이전 계획(`2026-08-21-writer-validation-fixes.md`)의 후속 항목으로 이미 기록되어 있음. `GlobalExceptionHandler`의 `"Invalid stream geometry"`가 이제 부정확하다.
 - **`CaptureCommandHandler`의 필수 필드 검증 누락**: 역시 이전 계획의 후속 항목.
 - **Redis 캐시 TTL 없음**: `capture:latest:trail:{id}` 키에 만료가 없어서 옛 형식(`Z` 없는) JSON이 무한정 남는다. 지금은 reader가 캐시 값을 역직렬화하지 않아 문제가 안 되지만, 캐시 처리를 개선할 때 같이 볼 것.
+- **reader JSON → backend DTO 역직렬화 경로에 테스트 없음** — `apps/backend`의 `StreamServiceImplTest`/`TrailServiceImplTest`는 `RestClient`를 mock해서 이미 만들어진 `StreamView`/`TrailView` 객체를 돌려주므로, `"...Z"` 문자열이 실제로 `Instant`로 역직렬화되는지는 검증되지 않습니다. 동작 자체는 Jackson 기본 설정으로 보장되고 이 브랜치 이전에도 마찬가지로 미검증이었지만, `MockRestServiceServer`나 간단한 `objectMapper.readValue(json, StreamView.class)` 왕복 검증으로 마지막 고리를 닫을 수 있습니다.
+- **H2 테스트 스키마와 Postgres 스키마의 타입 불일치** — 테스트용 `services/{reader,writer}/src/test/resources/schema.sql`은 `created_at TIMESTAMP`인데 운영은 이제 `TIMESTAMPTZ`입니다. 현재 이 경로를 건드리는 유일한 테스트(`CaptureRepositoryTest`)가 `isNotNull()`만 검증해서, 타임존이 어긋나도 통과합니다. H2도 `TIMESTAMP WITH TIME ZONE`을 지원하므로 두 파일을 한 단어씩 고치고 실제 왕복 값을 검증하도록 보강하면 운영과 같은 매핑을 테스트하게 됩니다.
+- **API 명세서의 `created_at` 예시에 초 단위 미만 정밀도 언급 없음** — Java 21의 `Instant.now()`는 마이크로초 정밀도를 내므로 실제 응답은 `"2026-08-22T05:59:33.262145Z"` 같은 형태가 됩니다. `docs/api-specs/stream-walkway.postman_collection.json`의 예시는 `"2024-01-01T00:00:00Z"`라 길이가 다릅니다. 둘 다 유효한 ISO-8601이고 `Z`는 항상 붙으므로 깨지는 건 없지만, 문자열을 정확히 매칭하는 소비자를 위해 명세서에 한 줄 적어두면 좋습니다.
+- **Capture 게이트웨이 구현 시 마주칠 shape 불일치 2건** — `CaptureView`에는 `updatedAt`이 없는데 `apps/backend`의 `model/Capture.java`는 `@JsonProperty("updated_at") String updatedAt`을 갖고 있고 Postman 명세도 이를 기대합니다. 또 `CaptureView`는 `Integer trailId/streamId`인데 `model/Capture`는 `Long`입니다. 둘 다 이 계획 이전부터 있던 갭이지만, Capture 게이트웨이를 만들 때 바로 부딪히는 지점이라 기록해 둡니다.
 
 ## 최종 검증
 
