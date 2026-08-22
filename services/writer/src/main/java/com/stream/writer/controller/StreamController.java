@@ -28,8 +28,8 @@ public class StreamController {
         return ResponseEntity.status(HttpStatus.CREATED).body(StreamView.from(saved));
     }
 
-    @ExceptionHandler({org.locationtech.jts.io.ParseException.class, ClassCastException.class})
-    public ResponseEntity<java.util.Map<String, String>> handleInvalidGeometry(Exception e) {
-        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid WKT geometry: " + e.getMessage()));
+    @ExceptionHandler({ParseException.class, ClassCastException.class, IllegalArgumentException.class})
+    public ResponseEntity<java.util.Map<String, String>> handleInvalidStreamData(Exception e) {
+        return ResponseEntity.badRequest().body(java.util.Map.of("error", "Invalid stream data: " + e.getMessage()));
     }
 }

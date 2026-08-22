@@ -31,6 +31,10 @@ public class TrailCommandHandler {
     // UNIQUE(stream_id, camera_number) 위반은 DuplicateTrailException(409)으로 변환한다.
     // ─────────────────────────────────────────
     public Trail handle(CreateTrailCommand command) throws ParseException {
+        if (command.location() == null || command.location().isBlank()) {
+            throw new IllegalArgumentException("location is required (WKT)");
+        }
+
         String status = command.status() == null ? "active" : command.status();
         if (!VALID_STATUSES.contains(status)) {
             throw new IllegalArgumentException("Invalid status: " + status + " (must be 'active' or 'inactive')");

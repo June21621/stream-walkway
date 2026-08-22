@@ -117,4 +117,15 @@ class TrailCommandHandlerTest {
         org.junit.jupiter.api.Assertions.assertThrows(
                 DataIntegrityViolationException.class, () -> handler.handle(command));
     }
+
+    @Test
+    @DisplayName("handle() - location이 null이면 IllegalArgumentException을 던진다")
+    void handle_throwsIllegalArgumentExceptionOnNullLocation() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-008", null, "북", "active");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+    }
 }

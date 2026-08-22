@@ -58,4 +58,15 @@ class StreamCommandHandlerTest {
         // when & then
         org.junit.jupiter.api.Assertions.assertThrows(ParseException.class, () -> handler.handle(command));
     }
+
+    @Test
+    @DisplayName("handle() - location이 null이면 IllegalArgumentException을 던진다")
+    void handle_throwsIllegalArgumentExceptionOnNullLocation() {
+        // given
+        CreateStreamCommand command = new CreateStreamCommand("한강 산책로", null);
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+    }
 }

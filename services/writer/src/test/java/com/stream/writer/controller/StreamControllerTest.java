@@ -105,4 +105,24 @@ class StreamControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
     }
+
+    @Test
+    @DisplayName("POST /internal/streams - 필수 필드가 비어있으면 400 Bad Request를 반환한다")
+    void create_returns400OnMissingRequiredField() throws Exception {
+        given(streamCommandHandler.handle(any(CreateStreamCommand.class)))
+                .willThrow(new IllegalArgumentException("location is required (WKT)"));
+
+        String requestBody = """
+                {
+                  "name": "한강 산책로",
+                  "location": null
+                }
+                """;
+
+        mockMvc.perform(post("/internal/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
 }
