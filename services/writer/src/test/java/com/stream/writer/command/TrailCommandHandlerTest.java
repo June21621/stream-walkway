@@ -2,6 +2,7 @@ package com.stream.writer.command;
 
 import com.stream.shared.entity.Trail;
 import com.stream.writer.exception.DuplicateTrailException;
+import com.stream.writer.repository.StreamRepository;
 import com.stream.writer.repository.TrailRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,9 @@ class TrailCommandHandlerTest {
     @Mock
     private TrailRepository trailRepository;
 
+    @Mock
+    private StreamRepository streamRepository;
+
     @InjectMocks
     private TrailCommandHandler handler;
 
@@ -36,6 +40,7 @@ class TrailCommandHandlerTest {
         CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-001", "POINT(126.97 37.55)", "북", "active");
         Trail savedTrail = new Trail();
         savedTrail.setCameraNumber("CAM-001");
+        given(streamRepository.existsById(1L)).willReturn(true);
         given(trailRepository.save(any(Trail.class))).willReturn(savedTrail);
 
         // when
@@ -60,6 +65,7 @@ class TrailCommandHandlerTest {
     void handle_defaultsNullStatusToActive() throws ParseException {
         // given
         CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-002", "POINT(126.97 37.55)", "북", null);
+        given(streamRepository.existsById(1L)).willReturn(true);
         given(trailRepository.save(any(Trail.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
@@ -95,6 +101,7 @@ class TrailCommandHandlerTest {
     void handle_throwsDuplicateTrailExceptionOnConstraintViolation() {
         // given
         CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-001", "POINT(126.97 37.55)", "북", "active");
+        given(streamRepository.existsById(1L)).willReturn(true);
         willThrow(new DataIntegrityViolationException("insert failed",
                 new RuntimeException("duplicate key value violates unique constraint \"trails_stream_id_camera_number_key\"")))
                 .given(trailRepository).save(any(Trail.class));
@@ -105,12 +112,13 @@ class TrailCommandHandlerTest {
     }
 
     @Test
-    @DisplayName("handle() - UNIQUE(stream_id, camera_number) 위반이 아닌 다른 무결성 위반은 DataIntegrityViolationException을 그대로 던진다")
+    @DisplayName("handle() - 우리가 아는 제약(UNIQUE/FK)이 아닌 무결성 위반은 DataIntegrityViolationException을 그대로 던진다")
     void handle_rethrowsDataIntegrityViolationExceptionOnOtherConstraintViolation() {
         // given
         CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-001", "POINT(126.97 37.55)", "북", "active");
+        given(streamRepository.existsById(1L)).willReturn(true);
         willThrow(new DataIntegrityViolationException("insert failed",
-                new RuntimeException("insert or update on table \"trails\" violates foreign key constraint \"trails_stream_id_fkey\"")))
+                new RuntimeException("new row for relation \"trails\" violates check constraint \"trails_status_check\"")))
                 .given(trailRepository).save(any(Trail.class));
 
         // when & then
@@ -160,5 +168,34 @@ class TrailCommandHandlerTest {
         // when & then
         org.junit.jupiter.api.Assertions.assertThrows(
                 ClassCastException.class, () -> handler.handle(command));
+    }
+
+    @Test
+    @DisplayName("handle() - 존재하지 않는 stream_id면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnNonExistentStreamId() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(999L, "CAM-100", "POINT(126.97 37.55)", "북", "active");
+        given(streamRepository.existsById(999L)).willReturn(false);
+
+        // when & then
+        IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+        assertThat(e.getMessage()).contains("999");
+        verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
+    }
+
+    @Test
+    @DisplayName("handle() - 존재 확인 직후 하천이 삭제된 경우(FK 위반)도 IllegalArgumentException으로 변환한다")
+    void handle_throwsIllegalArgumentExceptionOnForeignKeyViolation() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-101", "POINT(126.97 37.55)", "북", "active");
+        given(streamRepository.existsById(1L)).willReturn(true);
+        willThrow(new DataIntegrityViolationException("insert failed",
+                new RuntimeException("insert or update on table \"trails\" violates foreign key constraint \"trails_stream_id_fkey\"")))
+                .given(trailRepository).save(any(Trail.class));
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
     }
 }
