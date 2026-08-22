@@ -2,7 +2,7 @@ package com.stream.shared.dto;
 
 import com.stream.shared.entity.Trail;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record TrailView(
         Long id,
@@ -11,7 +11,7 @@ public record TrailView(
         String location,
         String direction,
         String status,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static TrailView from(Trail trail) {
         String wkt = trail.getLocation().toText().replaceFirst("\\s+\\(", "(");

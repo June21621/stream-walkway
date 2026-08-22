@@ -10,7 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,7 +30,7 @@ class TrailServiceImplTest {
         RestClient readerClient = mock(RestClient.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         RestClient writerClient = mock(RestClient.class);
         TrailView view = new TrailView(1L, 1L, "CAM-001", "POINT(126.97 37.55)", "북", "active",
-                LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+                Instant.parse("2024-01-01T00:00:00Z"));
 
         given(readerClient.get()
                 .uri("/trails")
@@ -51,7 +51,7 @@ class TrailServiceImplTest {
         assertThat(result.get(0).getLocation()).isEqualTo("POINT(126.97 37.55)");
         assertThat(result.get(0).getDirection()).isEqualTo("북");
         assertThat(result.get(0).getStatus()).isEqualTo("active");
-        assertThat(result.get(0).getCreatedAt()).isEqualTo("2024-01-01T00:00:00");
+        assertThat(result.get(0).getCreatedAt()).isEqualTo("2024-01-01T00:00:00Z");
     }
 
     @Test
@@ -61,7 +61,7 @@ class TrailServiceImplTest {
         RestClient readerClient = mock(RestClient.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         RestClient writerClient = mock(RestClient.class);
         TrailView view = new TrailView(1L, 1L, "CAM-001", "POINT(126.97 37.55)", "북", "active",
-                LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+                Instant.parse("2024-01-01T00:00:00Z"));
 
         given(readerClient.get()
                 .uri("/trails?stream_id={streamId}", 1L)
@@ -121,7 +121,7 @@ class TrailServiceImplTest {
         RestClient readerClient = mock(RestClient.class);
         RestClient writerClient = mock(RestClient.class);
         TrailView created = new TrailView(1L, 1L, "CAM-001", "POINT(126.97 37.55)", "북", "active",
-                LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+                Instant.parse("2024-01-01T00:00:00Z"));
 
         RestClient.ResponseSpec responseSpec = stubWriterCreateCall(writerClient);
         given(responseSpec.body(TrailView.class)).willReturn(created);
@@ -137,7 +137,7 @@ class TrailServiceImplTest {
         assertThat(result.getStreamId()).isEqualTo(1L);
         assertThat(result.getCameraNumber()).isEqualTo("CAM-001");
         assertThat(result.getStatus()).isEqualTo("active");
-        assertThat(result.getCreatedAt()).isEqualTo("2024-01-01T00:00:00");
+        assertThat(result.getCreatedAt()).isEqualTo("2024-01-01T00:00:00Z");
     }
 
     @Test

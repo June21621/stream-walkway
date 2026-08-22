@@ -7,7 +7,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,7 +31,7 @@ class TrailViewTest {
                 new WKTReader().read("POINT(126.97 37.55)"));
         trail.setDirection("북");
         trail.setStatus("active");
-        setField(trail, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        setField(trail, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
 
         TrailView view = TrailView.from(trail);
 
@@ -41,7 +41,7 @@ class TrailViewTest {
         assertThat(view.location()).isEqualTo("POINT(126.97 37.55)");
         assertThat(view.direction()).isEqualTo("북");
         assertThat(view.status()).isEqualTo("active");
-        assertThat(view.createdAt()).isEqualTo(LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        assertThat(view.createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
     }
 
     @Test

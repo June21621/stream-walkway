@@ -11,7 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,7 +42,7 @@ class TrailControllerTest {
         trail.setStatus("active");
         Field createdAtField = Trail.class.getDeclaredField("createdAt");
         createdAtField.setAccessible(true);
-        createdAtField.set(trail, LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        createdAtField.set(trail, Instant.parse("2024-01-01T00:00:00Z"));
         return trail;
     }
 
@@ -59,7 +59,8 @@ class TrailControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].streamId").value(1))
                 .andExpect(jsonPath("$[0].cameraNumber").value("CAM-001"))
-                .andExpect(jsonPath("$[0].location").value("POINT(126.97 37.55)"));
+                .andExpect(jsonPath("$[0].location").value("POINT(126.97 37.55)"))
+                .andExpect(jsonPath("$[0].createdAt").value("2024-01-01T00:00:00Z"));
     }
 
     @Test

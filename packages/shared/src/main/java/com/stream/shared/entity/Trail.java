@@ -3,7 +3,7 @@ package com.stream.shared.entity;
 import jakarta.persistence.*;
 import org.locationtech.jts.geom.Point;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "trails")
@@ -30,11 +30,11 @@ public class Trail {
     private String status;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
     }
 
     public Long getId() { return id; }
@@ -54,5 +54,5 @@ public class Trail {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
 }

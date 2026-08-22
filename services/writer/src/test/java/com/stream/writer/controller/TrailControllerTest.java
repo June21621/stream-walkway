@@ -13,7 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -48,7 +48,7 @@ class TrailControllerTest {
                 new org.locationtech.jts.io.WKTReader().read("POINT(126.97 37.55)"));
         saved.setDirection("북");
         saved.setStatus("active");
-        setField(saved, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        setField(saved, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
 
         given(trailCommandHandler.handle(any(CreateTrailCommand.class))).willReturn(saved);
 

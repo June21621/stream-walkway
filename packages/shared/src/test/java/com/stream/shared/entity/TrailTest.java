@@ -8,7 +8,7 @@ import org.locationtech.jts.io.WKTReader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,13 +82,13 @@ class TrailTest {
     @DisplayName("@PrePersist - onCreate() 호출 시 createdAt이 현재 시각으로 설정된다")
     void onCreate_setsCreatedAt() throws Exception {
         Trail trail = new Trail();
-        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
+        Instant before = Instant.now().minusSeconds(1);
 
         Method onCreateMethod = Trail.class.getDeclaredMethod("onCreate");
         onCreateMethod.setAccessible(true);
         onCreateMethod.invoke(trail);
 
-        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+        Instant after = Instant.now().plusSeconds(1);
         assertThat(trail.getCreatedAt()).isNotNull();
         assertThat(trail.getCreatedAt()).isAfterOrEqualTo(before);
         assertThat(trail.getCreatedAt()).isBeforeOrEqualTo(after);

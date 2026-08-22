@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,7 +34,7 @@ public class TrailServiceImpl implements TrailService {
                 view.location(),
                 view.direction(),
                 view.status(),
-                view.createdAt() == null ? null : view.createdAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                view.createdAt() == null ? null : view.createdAt().toString()
         );
     }
 
