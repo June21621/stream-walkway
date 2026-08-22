@@ -357,6 +357,7 @@ import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.hibernate.Session;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -364,7 +365,10 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -472,8 +476,8 @@ class TrailCommandHandlerConstraintTest {
     }
 
     @Test
-    @DisplayName("createdAt이 TIMESTAMPTZ 컬럼을 UTC로 정확히 왕복한다")
-    void createdAtSurvivesRoundTripAsUtc() throws ParseException {
+    @DisplayName("createdAt이 정확히 왕복하고, created_at 컬럼이 실제로 TIMESTAMPTZ임을 raw JDBC 타입으로 증명한다")
+    void createdAtSurvivesRoundTripAndColumnIsTimestamptz() throws ParseException {
         TrailCommandHandler handler = new TrailCommandHandler(trailRepository, streamRepository);
 
         Instant before = Instant.now().minusSeconds(1);
@@ -487,9 +491,30 @@ class TrailCommandHandlerConstraintTest {
         entityManager.flush();
         entityManager.clear();
 
+        // 이 왕복 비교만으로는 컬럼이 TIMESTAMP인지 TIMESTAMP WITH TIME ZONE인지 구분하지 못한다.
+        // Hibernate가 쓰기와 읽기에 같은 JVM 기본 시간대 변환을 적용하고 그 변환은 self-inverse라서,
+        // 한 프로세스 안에서는 어느 쪽이든 값이 그대로 돌아온다(실측 확인).
+        // 여기서 잡히는 건 값이 멈췄거나 정밀도가 깎이는 경우다.
         Trail reloaded = trailRepository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getCreatedAt()).isBetween(before, after);
         assertThat(reloaded.getCreatedAt().getEpochSecond()).isEqualTo(inMemory.getEpochSecond());
+
+        // 컬럼 타입은 raw JDBC 값의 런타임 타입으로 확인한다.
+        // H2에서 TIMESTAMP WITH TIME ZONE 컬럼은 OffsetDateTime으로 읽히지만 평범한 TIMESTAMP는
+        // 그렇지 않으므로, 스키마가 TIMESTAMP로 되돌아가면 실제로 실패하는 진짜 판별 기준이다.
+        Object rawCreatedAt = entityManager.getEntityManager()
+                .unwrap(Session.class)
+                .doReturningWork(connection -> {
+                    try (PreparedStatement stmt = connection.prepareStatement(
+                            "SELECT created_at FROM trails WHERE id = ?")) {
+                        stmt.setLong(1, saved.getId());
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            rs.next();
+                            return rs.getObject("created_at");
+                        }
+                    }
+                });
+        assertThat(rawCreatedAt).isInstanceOf(OffsetDateTime.class);
     }
 
     @Test
