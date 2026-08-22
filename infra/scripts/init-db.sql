@@ -6,7 +6,7 @@ CREATE TABLE streams (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     location GEOMETRY(LINESTRING, 4326) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- trails 테이블
@@ -17,7 +17,7 @@ CREATE TABLE trails (
     location GEOMETRY(POINT, 4326) NOT NULL,
     direction VARCHAR(50),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (stream_id, camera_number)
 );
 
@@ -29,8 +29,8 @@ CREATE TABLE captures (
     image_path VARCHAR(500) NOT NULL,
     road_status VARCHAR(10) CHECK (road_status IN ('양호', '주의', '불량')),
     confidence DECIMAL(3,2) DEFAULT 0.0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 업데이트 시간 자동 갱신 트리거

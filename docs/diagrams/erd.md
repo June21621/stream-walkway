@@ -15,7 +15,7 @@ erDiagram
         serial      id          PK "SERIAL PRIMARY KEY"
         varchar(255) name           "NOT NULL"
         geometry    location       "LINESTRING / SRID 4326, NOT NULL"
-        timestamp   created_at     "DEFAULT CURRENT_TIMESTAMP"
+        timestamptz created_at     "DEFAULT CURRENT_TIMESTAMP (타임존 포함, 엔티티는 Instant)"
     }
 
     trails {
@@ -25,7 +25,7 @@ erDiagram
         geometry    location         "POINT / SRID 4326, NOT NULL"
         varchar(50) direction
         varchar(20) status           "DEFAULT 'active', CHECK IN (active / inactive)"
-        timestamp   created_at       "DEFAULT CURRENT_TIMESTAMP"
+        timestamptz created_at       "DEFAULT CURRENT_TIMESTAMP (타임존 포함, 엔티티는 Instant)"
     }
 
     captures {
@@ -35,8 +35,8 @@ erDiagram
         varchar(500) image_path    "NOT NULL"
         varchar(10) road_status    "CHECK IN (양호 / 주의 / 불량)"
         decimal     confidence     "DECIMAL(3,2), DEFAULT 0.0"
-        timestamp   created_at     "DEFAULT CURRENT_TIMESTAMP"
-        timestamp   updated_at     "DEFAULT CURRENT_TIMESTAMP, 트리거로 자동 갱신"
+        timestamptz created_at     "DEFAULT CURRENT_TIMESTAMP (타임존 포함, 엔티티는 Instant)"
+        timestamptz updated_at     "DEFAULT CURRENT_TIMESTAMP, 트리거로 자동 갱신"
     }
 ```
 
@@ -68,3 +68,4 @@ Mermaid ER 문법으로 표현되지 않는 항목입니다.
 - **PostGIS 필수** — `location` 컬럼이 `GEOMETRY` 타입이므로 DB 초기화 시 `CREATE EXTENSION postgis` 가 먼저 실행되어야 합니다. SRID 4326은 WGS84(GPS 위경도) 기준입니다.
 - **`captures.stream_id` 는 비정규화** — `trail_id → trails.stream_id` 로 조회 가능하지만, 하천 단위 조회가 잦아 JOIN을 피하려고 중복 보관합니다. 따라서 트레일을 다른 하천으로 옮기는 경우 `captures.stream_id` 도 함께 갱신해야 정합성이 유지됩니다.
 - **CASCADE 삭제** — 하천 삭제 시 소속 트레일과 캡처가 모두 함께 삭제됩니다.
+- **timestamp 컬럼은 `TIMESTAMPTZ`** — 자바 엔티티의 `createdAt`이 `Instant`(시점 타입)이므로, 타임존 정보를 보관하지 않는 `TIMESTAMP`가 아니라 `TIMESTAMPTZ`를 쓴다. 이렇게 해야 API 응답의 `created_at`이 `2024-01-01T00:00:00Z`처럼 타임존이 명시된 ISO-8601 형식으로 나간다.
