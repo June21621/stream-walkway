@@ -11,7 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,7 +39,7 @@ class StreamControllerTest {
                 new org.locationtech.jts.io.WKTReader().read("LINESTRING(126.97 37.55, 126.98 37.56)"));
         Field createdAtField = Stream.class.getDeclaredField("createdAt");
         createdAtField.setAccessible(true);
-        createdAtField.set(stream, LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        createdAtField.set(stream, Instant.parse("2024-01-01T00:00:00Z"));
         return stream;
     }
 
@@ -55,7 +55,8 @@ class StreamControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("한강 산책로"))
-                .andExpect(jsonPath("$[0].location").value("LINESTRING(126.97 37.55, 126.98 37.56)"));
+                .andExpect(jsonPath("$[0].location").value("LINESTRING(126.97 37.55, 126.98 37.56)"))
+                .andExpect(jsonPath("$[0].createdAt").value("2024-01-01T00:00:00Z"));
     }
 
     @Test

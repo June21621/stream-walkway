@@ -9,7 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +29,7 @@ class StreamServiceImplTest {
         RestClient readerClient = mock(RestClient.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         RestClient writerClient = mock(RestClient.class);
         StreamView view = new StreamView(1L, "한강 산책로", "LINESTRING(126.97 37.55, 126.98 37.56)",
-                LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+                Instant.parse("2024-01-01T00:00:00Z"));
 
         given(readerClient.get()
                 .uri("/streams")
@@ -47,7 +47,7 @@ class StreamServiceImplTest {
         assertThat(result.get(0).getId()).isEqualTo(1L);
         assertThat(result.get(0).getName()).isEqualTo("한강 산책로");
         assertThat(result.get(0).getLocation()).isEqualTo("LINESTRING(126.97 37.55, 126.98 37.56)");
-        assertThat(result.get(0).getCreatedAt()).isEqualTo("2024-01-01T00:00:00");
+        assertThat(result.get(0).getCreatedAt()).isEqualTo("2024-01-01T00:00:00Z");
     }
 
     @Test
@@ -91,7 +91,7 @@ class StreamServiceImplTest {
         RestClient readerClient = mock(RestClient.class);
         RestClient writerClient = mock(RestClient.class);
         StreamView created = new StreamView(1L, "한강 산책로", "LINESTRING(126.97 37.55, 126.98 37.56)",
-                LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+                Instant.parse("2024-01-01T00:00:00Z"));
 
         RestClient.ResponseSpec responseSpec = stubWriterCreateCall(writerClient);
         given(responseSpec.body(StreamView.class)).willReturn(created);
@@ -106,7 +106,7 @@ class StreamServiceImplTest {
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getName()).isEqualTo("한강 산책로");
         assertThat(result.getLocation()).isEqualTo("LINESTRING(126.97 37.55, 126.98 37.56)");
-        assertThat(result.getCreatedAt()).isEqualTo("2024-01-01T00:00:00");
+        assertThat(result.getCreatedAt()).isEqualTo("2024-01-01T00:00:00Z");
     }
 
     @Test

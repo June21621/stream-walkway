@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -44,7 +44,7 @@ class StreamControllerTest {
         saved.setName("한강 산책로");
         saved.setLocation((org.locationtech.jts.geom.LineString)
                 new org.locationtech.jts.io.WKTReader().read("LINESTRING(126.97 37.55, 126.98 37.56)"));
-        setField(saved, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        setField(saved, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
 
         given(streamCommandHandler.handle(any(CreateStreamCommand.class))).willReturn(saved);
 

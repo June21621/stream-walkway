@@ -3,7 +3,7 @@ package com.stream.shared.entity;
 import jakarta.persistence.*;
 import org.locationtech.jts.geom.LineString;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "streams")
@@ -22,11 +22,11 @@ public class Stream {
     private LineString location;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
     }
 
     public Long getId() { return id; }
@@ -34,5 +34,5 @@ public class Stream {
     public void setName(String name) { this.name = name; }
     public LineString getLocation() { return location; }
     public void setLocation(LineString location) { this.location = location; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
 }

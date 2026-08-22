@@ -7,7 +7,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,14 +28,14 @@ class StreamViewTest {
         stream.setName("한강 산책로");
         stream.setLocation((org.locationtech.jts.geom.LineString)
                 new WKTReader().read("LINESTRING(126.97 37.55, 126.98 37.56)"));
-        setField(stream, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        setField(stream, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
 
         StreamView view = StreamView.from(stream);
 
         assertThat(view.id()).isEqualTo(1L);
         assertThat(view.name()).isEqualTo("한강 산책로");
         assertThat(view.location()).isEqualTo("LINESTRING(126.97 37.55, 126.98 37.56)");
-        assertThat(view.createdAt()).isEqualTo(LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        assertThat(view.createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
     }
 
     @Test
