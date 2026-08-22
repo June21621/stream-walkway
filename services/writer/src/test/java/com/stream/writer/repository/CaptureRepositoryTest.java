@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,15 +69,26 @@ class CaptureRepositoryTest {
     }
 
     @Test
-    @DisplayName("save() - 저장 시 @PrePersist에 의해 createdAt이 자동 설정된다")
+    @DisplayName("save() - 저장 시 @PrePersist에 의해 createdAt이 자동 설정되고, DB 왕복 후에도 같은 시각이다")
     void save_setsCreatedAtViaPrePersist() {
         Capture capture = buildCapture(1, 1, "/images/cap_001.jpg");
         assertThat(capture.getCreatedAt()).isNull(); // 저장 전에는 null
 
+        Instant before = Instant.now().minusSeconds(1);
         Capture saved = captureRepository.save(capture);
         entityManager.flush();
+        Instant after = Instant.now().plusSeconds(1);
 
         assertThat(saved.getCreatedAt()).isNotNull();
+        assertThat(saved.getCreatedAt()).isBetween(before, after);
+
+        // DB를 실제로 왕복시켜 TIMESTAMPTZ 컬럼이 Instant를 밀지 않는지 확인한다.
+        // isNotNull()만 보던 이전 버전은 타임존이 어긋나도 통과했다.
+        Instant inMemory = saved.getCreatedAt();
+        entityManager.clear();
+        Capture reloaded = captureRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getCreatedAt()).isBetween(before, after);
+        assertThat(reloaded.getCreatedAt().getEpochSecond()).isEqualTo(inMemory.getEpochSecond());
     }
 
     // ─────────────────────────────────────────
