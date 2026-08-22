@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,13 +74,13 @@ class CaptureTest {
     @Test
     @DisplayName("@PrePersist - onCreate() 호출 시 createdAt이 현재 시각으로 설정된다")
     void onCreate_setsCreatedAt() throws Exception {
-        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
+        Instant before = Instant.now().minusSeconds(1);
 
         Method onCreateMethod = Capture.class.getDeclaredMethod("onCreate");
         onCreateMethod.setAccessible(true);
         onCreateMethod.invoke(capture);
 
-        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+        Instant after = Instant.now().plusSeconds(1);
 
         assertThat(capture.getCreatedAt()).isNotNull();
         assertThat(capture.getCreatedAt()).isAfterOrEqualTo(before);
@@ -94,11 +94,11 @@ class CaptureTest {
         onCreateMethod.setAccessible(true);
 
         onCreateMethod.invoke(capture);
-        LocalDateTime first = capture.getCreatedAt();
+        Instant first = capture.getCreatedAt();
 
         Thread.sleep(10);
         onCreateMethod.invoke(capture);
-        LocalDateTime second = capture.getCreatedAt();
+        Instant second = capture.getCreatedAt();
 
         assertThat(second).isAfterOrEqualTo(first);
     }

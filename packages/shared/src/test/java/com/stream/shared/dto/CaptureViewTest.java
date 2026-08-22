@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +28,7 @@ class CaptureViewTest {
         capture.setImagePath("/images/capture_001.jpg");
         capture.setRoadStatus("양호");
         capture.setConfidence(0.95);
-        setField(capture, "createdAt", LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        setField(capture, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
 
         CaptureView view = CaptureView.from(capture);
 
@@ -38,6 +38,6 @@ class CaptureViewTest {
         assertThat(view.imagePath()).isEqualTo("/images/capture_001.jpg");
         assertThat(view.roadStatus()).isEqualTo("양호");
         assertThat(view.confidence()).isEqualTo(0.95);
-        assertThat(view.createdAt()).isEqualTo(LocalDateTime.of(2024, 1, 1, 0, 0, 0));
+        assertThat(view.createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
     }
 }

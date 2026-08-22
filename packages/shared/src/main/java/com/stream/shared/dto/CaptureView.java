@@ -2,7 +2,7 @@ package com.stream.shared.dto;
 
 import com.stream.shared.entity.Capture;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record CaptureView(
         Long id,
@@ -11,7 +11,7 @@ public record CaptureView(
         String imagePath,
         String roadStatus,
         Double confidence,
-        LocalDateTime createdAt
+        Instant createdAt
 ) {
     public static CaptureView from(Capture capture) {
         return new CaptureView(

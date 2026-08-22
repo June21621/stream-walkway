@@ -2,7 +2,7 @@ package com.stream.shared.entity;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "captures")
@@ -28,11 +28,11 @@ public class Capture {
     private Double confidence;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
     }
 
     public Long getId() { return id; }
@@ -46,5 +46,5 @@ public class Capture {
     public void setRoadStatus(String roadStatus) { this.roadStatus = roadStatus; }
     public Double getConfidence() { return confidence; }
     public void setConfidence(Double confidence) { this.confidence = confidence; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
 }
