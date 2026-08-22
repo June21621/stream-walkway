@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────
+# 줄바꿈(EOL) 정책
+#
+# Windows에서 core.autocrlf=true로 체크아웃하면 텍스트 파일이 CRLF로 바뀐다.
+# 대부분의 파일(Java, XML, YAML 등)은 CRLF여도 문제없지만,
+# **리눅스 컨테이너 안에서 실행되는 스크립트는 CRLF면 실행 자체가 실패한다.**
+#
+# 예: mvnw가 CRLF면 shebang이 `#!/bin/sh\r`가 되고, 리눅스 커널은
+#     `/bin/sh\r`라는 인터프리터를 찾다가 실패해서
+#     `./mvnw: not found` 라는 (파일은 멀쩡히 있는데도) 엉뚱한 에러를 낸다.
+#     2026-08-22 Docker 실기동 검증에서 실제로 이 문제로 빌드가 전부 깨졌다.
+#
+# 그래서 컨테이너에서 실행되는 파일만 LF로 못박는다.
+# 나머지 파일은 기존 동작을 유지한다(전체 재정규화는 diff가 너무 커짐).
+# ─────────────────────────────────────────
+
+# Maven Wrapper — Dockerfile이 COPY해서 리눅스에서 실행한다
+mvnw        text eol=lf
+
+# 셸 스크립트 — 컨테이너 또는 bash에서 실행된다
+*.sh        text eol=lf
+
+# Windows 전용 배치 파일은 반대로 CRLF여야 한다
+mvnw.cmd    text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
