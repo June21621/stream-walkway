@@ -60,6 +60,16 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -67,6 +77,24 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!--
+				Testcontainers가 Docker에 붙으려면 API 버전을 명시해야 한다.
+				Testcontainers 1.21.2가 쓰는 docker-java는 버전 협상에 실패하면 API 1.32로
+				폴백하는데, Docker Engine 29는 1.40 미만을 거부한다:
+				  "client version 1.32 is too old. Minimum supported API version is 1.40"
+				이 값이 없으면 TrailCommandHandlerPostgresTest가 실패가 아니라 조용히 skip된다
+				(@EnabledIfDockerAvailable이 Docker를 못 찾은 것으로 판단하기 때문).
+				1.41은 Docker 20.10부터 29까지 모두 지원하는 범위다.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<api.version>1.41</api.version>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.jacoco</groupId>
