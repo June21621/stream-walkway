@@ -128,4 +128,37 @@ class TrailCommandHandlerTest {
         org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class, () -> handler.handle(command));
     }
+
+    @Test
+    @DisplayName("handle() - streamId가 null이면 IllegalArgumentException을 던진다")
+    void handle_throwsIllegalArgumentExceptionOnNullStreamId() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(null, "CAM-009", "POINT(126.97 37.55)", "북", "active");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+    }
+
+    @Test
+    @DisplayName("handle() - cameraNumber가 null이면 IllegalArgumentException을 던진다")
+    void handle_throwsIllegalArgumentExceptionOnNullCameraNumber() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(1L, null, "POINT(126.97 37.55)", "북", "active");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+    }
+
+    @Test
+    @DisplayName("handle() - Point가 아닌 WKT(LINESTRING 등)를 넘기면 실제로 ClassCastException을 던진다")
+    void handle_throwsClassCastExceptionOnNonPointGeometry() {
+        // given
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-010", "LINESTRING(0 0, 1 1)", "북", "active");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                ClassCastException.class, () -> handler.handle(command));
+    }
 }

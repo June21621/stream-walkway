@@ -31,6 +31,12 @@ public class TrailCommandHandler {
     // UNIQUE(stream_id, camera_number) 위반은 DuplicateTrailException(409)으로 변환한다.
     // ─────────────────────────────────────────
     public Trail handle(CreateTrailCommand command) throws ParseException {
+        if (command.streamId() == null) {
+            throw new IllegalArgumentException("streamId is required");
+        }
+        if (command.cameraNumber() == null || command.cameraNumber().isBlank()) {
+            throw new IllegalArgumentException("cameraNumber is required");
+        }
         if (command.location() == null || command.location().isBlank()) {
             throw new IllegalArgumentException("location is required (WKT)");
         }

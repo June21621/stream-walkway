@@ -69,4 +69,26 @@ class StreamCommandHandlerTest {
         org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class, () -> handler.handle(command));
     }
+
+    @Test
+    @DisplayName("handle() - name이 null이면 IllegalArgumentException을 던진다")
+    void handle_throwsIllegalArgumentExceptionOnNullName() {
+        // given
+        CreateStreamCommand command = new CreateStreamCommand(null, "LINESTRING(126.97 37.55, 126.98 37.56)");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+    }
+
+    @Test
+    @DisplayName("handle() - LineString이 아닌 WKT(POINT 등)를 넘기면 실제로 ClassCastException을 던진다")
+    void handle_throwsClassCastExceptionOnNonLineStringGeometry() {
+        // given
+        CreateStreamCommand command = new CreateStreamCommand("점 좌표", "POINT(1 2)");
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+                ClassCastException.class, () -> handler.handle(command));
+    }
 }

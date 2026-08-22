@@ -22,6 +22,9 @@ public class StreamCommandHandler {
     // CreateStreamCommand 처리 → WKT 문자열을 LineString으로 파싱 → PostgreSQL 저장
     // ─────────────────────────────────────────
     public Stream handle(CreateStreamCommand command) throws ParseException {
+        if (command.name() == null || command.name().isBlank()) {
+            throw new IllegalArgumentException("name is required");
+        }
         if (command.location() == null || command.location().isBlank()) {
             throw new IllegalArgumentException("location is required (WKT)");
         }
