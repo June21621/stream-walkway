@@ -36,7 +36,16 @@ public class TrailCommandHandler {
     //
     // UNIQUE(stream_id, camera_number) 위반은 DuplicateTrailException(409)으로,
     // FK(trails_stream_id_fkey) 위반은 IllegalArgumentException(400)으로 변환한다.
-    // FK catch는 존재 확인과 저장 사이에 하천이 삭제되는 경쟁 상황을 위한 안전망이다.
+    //
+    // FK catch가 실제로 정확성을 보장하는 쪽이고, 위의 존재 확인은 흔한 경우를
+    // DB 에러 문자열 파싱 없이 걸러내는 위생 계층이다.
+    //
+    // 주의: 존재 확인과 저장 사이에 하천이 삭제되는 경쟁을 "해결"하지는 못한다.
+    // 경쟁에서 진 경우(DELETE가 먼저 커밋)를 500 대신 깔끔한 400으로 바꿔줄 뿐이다.
+    // 반대 순서(INSERT가 먼저 커밋)면 streams의 ON DELETE CASCADE가 방금 만든
+    // trail을 지우므로, 클라이언트는 이미 사라진 행에 대해 201을 받는다.
+    // Postgres가 INSERT 중 streams 행에 FOR KEY SHARE 락을 잡기 때문에 오히려
+    // 이쪽이 더 흔한데, 이건 이 핸들러에서 해결할 수 있는 문제가 아니다.
     //
     // WKTReader는 스레드 안전하지 않으므로(JTS 문서 명시) 싱글턴 빈의 필드로 공유하지 않고
     // 매 호출마다 새로 만든다 (생성 비용은 미미함).

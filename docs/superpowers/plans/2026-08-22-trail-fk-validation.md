@@ -346,6 +346,10 @@ git commit -m "docs: Trail FK 검증 수정의 Docker 실기동 결과 기록"
 
 ## 후속 작업 (이 계획엔 포함 안 함, 참고용)
 
+- **[최종 리뷰에서 나온 최우선 항목] writer 테스트 스키마에 `streams`/`trails` 추가**: `services/writer/src/test/resources/schema.sql`에는 `captures` 테이블만 있고 `streams`/`trails`도, FK도 전혀 없다. **그래서 이 저장소의 어떤 자동화 테스트도 진짜 FK 위반을 일으킬 수 없고, 바로 그 이유로 이 버그가 Docker까지 살아남았다.** 이번에 추가한 FK catch 분기도 손으로 쓴 가짜 예외 메시지로만 검증될 뿐, 실제 Postgres 에러 문자열이 `trails_stream_id_fkey`를 포함하는지는 `pg_constraint` 조회 기록에만 의존한다. 두 테이블을 실제 FK/UNIQUE 제약과 함께 추가하면 `@DataJpaTest`로 이 분기를 진짜 제약 위반으로 검증할 수 있다.
+- **`ON DELETE CASCADE`로 인한 반대 방향 경쟁은 미해결**: INSERT가 먼저 커밋되면 cascade가 방금 만든 trail을 지워서 클라이언트가 이미 사라진 행에 대해 201을 받는다. Postgres가 INSERT 중 `FOR KEY SHARE` 락을 잡으므로 오히려 이쪽이 더 흔하다. 이 핸들러 수준에서 해결 불가 — 스키마/트랜잭션 설계 차원의 문제라 별도 검토 필요.
+- **`apps/backend`의 에러 본문 중첩이 어색함**: 지금은 `{"error":"Invalid trail data","message":"Writer rejected the trail data: {\"error\":\"Invalid trail data: stream_id=999999 does not exist\"}"}` 처럼 JSON 문자열이 JSON 필드 안에 이스케이프되어 들어가고 "Invalid trail data"가 두 번 나온다. `TrailServiceImpl.create`에서 writer 응답의 `error` 필드만 뽑아 쓰면 깔끔해진다. 없는 `stream_id`는 흔한 실수라 이 중첩을 클라이언트가 자주 보게 된다.
+
 - **`InvalidTrailGeometryException` 이름이 부정확함**: `apps/backend`에서 writer의 400을 전부 이 예외로 받는데, 이제 geometry와 무관한 경우(필수값 누락, 존재하지 않는 stream_id)가 대부분이다. `InvalidTrailDataException` 같은 이름이 맞다. 이전 계획들의 후속 목록에도 이미 기록돼 있다.
 - **`apps/backend`의 Stream 에러 메시지도 같은 문제**: `GlobalExceptionHandler`가 `"Invalid stream geometry"`라고 하는데 이제 geometry 외 오류도 포함한다.
 - **`CaptureCommandHandler`의 필수값 검증 누락**: Capture도 `trail_id`/`stream_id` FK가 있는데 검증이 없다. Kafka 컨슈머 경로라 증상은 다르다(400이 아니라 컨슈머 예외).

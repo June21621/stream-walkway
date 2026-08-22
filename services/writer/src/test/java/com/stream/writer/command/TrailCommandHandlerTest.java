@@ -195,7 +195,8 @@ class TrailCommandHandlerTest {
                 .given(trailRepository).save(any(Trail.class));
 
         // when & then
-        org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class, () -> handler.handle(command));
+        assertThat(e.getMessage()).contains("does not exist");
     }
 }
