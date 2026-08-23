@@ -995,4 +995,80 @@ git commit -m "docs: 테스트 스키마 제약 도입의 검증 결과 기록"
 
 ## 최종 검증
 
-(Task 5에서 채운다)
+### Step 1: 전체 테스트 실행 결과 (2026-08-23, commit db1ffcc)
+
+| module | command | 실측 결과 | 소요 시간 | 기준선 | 증감 |
+|---|---|---|---|---|---|
+| shared | `.\mvnw.cmd -B -o test` | `Tests run: 30, Failures: 0, Errors: 0` | 3.37s | 4.0s | -0.63s (오차 범위) |
+| reader | `.\mvnw.cmd -B -o test` | `Tests run: 32, Failures: 0, Errors: 1` | 15.24s | 17.6s | -2.36s (오차 범위) |
+| writer | `.\mvnw.cmd -B -o test "-Dtest=!WriterApplicationTests"` | `Tests run: 57, Failures: 0, Errors: 0` | 17.31s | 16.1s | +1.21s / **테스트 +11개**(46→57: Task 3 +6, Task 4 +5) |
+| backend | `.\mvnw.cmd -B -o test` | `Tests run: 36, Failures: 0, Errors: 5` | 9.94s | 11.4s | -1.46s (오차 범위) |
+
+네 모듈 모두 기대한 개수와 정확히 일치했다. reader의 에러 1건(`ReaderApplicationTests.contextLoads`, 실제 PostgreSQL 없이는 ApplicationContext 로딩 실패)과 backend의 에러 5건(`CaptureControllerTest`, `UnsupportedOperationException: Not implemented` 스텁)은 이 브랜치 이전부터 있던 기존 RED이고 회귀가 아니다. 그 외의 실패는 없었다.
+
+writer 모듈의 `TrailCommandHandlerPostgresTest`(Testcontainers postgis)는 `Skipped: 0`으로 5개 테스트가 실제로 실행됐다 — Docker API 버전 고정이 정상 작동하고 있음을 확인했다.
+
+shared/reader/backend는 이번 계획에서 테스트를 추가하지 않았으므로 개수 변화가 없다. 소요 시간 증감은 모두 컨테이너/CPU 부하에 따른 측정 노이즈 범위이며, writer의 +1.21초는 새로 추가된 11개 테스트(그중 5개는 Testcontainers로 실제 Postgres 컨테이너를 기동) 대비 오히려 작은 증가다.
+
+### Step 2~3: 뮤테이션 테스트 — FK 제약을 일부러 제거했을 때 테스트가 실패하는지 확인
+
+`services/writer/src/test/resources/schema.sql`의 FK 제약 줄을 주석 처리:
+```sql
+--    CONSTRAINT trails_stream_id_fkey FOREIGN KEY (stream_id) REFERENCES streams(id) ON DELETE CASCADE,
+```
+
+`.\mvnw.cmd -B -o test "-Dtest=TrailCommandHandlerConstraintTest"` 실행 결과, 예상대로 **FAIL**했다:
+
+```
+Tests run: 6, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 6.053 s <<< FAILURE! -- in com.stream.writer.command.TrailCommandHandlerConstraintTest
+
+com.stream.writer.command.TrailCommandHandlerConstraintTest.realForeignKeyViolationBecomesIllegalArgumentException -- Time elapsed: 0.420 s <<< FAILURE!
+java.lang.AssertionError:
+Expecting code to raise a throwable.
+	at com.stream.writer.command.TrailCommandHandlerConstraintTest.realForeignKeyViolationBecomesIllegalArgumentException(TrailCommandHandlerConstraintTest.java:80)
+
+com.stream.writer.command.TrailCommandHandlerConstraintTest.deletingStreamCascadesToTrails -- Time elapsed: 0.104 s <<< FAILURE!
+java.lang.AssertionError:
+Expecting an empty Optional but was containing value: com.stream.shared.entity.Trail@47e935be
+	at com.stream.writer.command.TrailCommandHandlerConstraintTest.deletingStreamCascadesToTrails(TrailCommandHandlerConstraintTest.java:191)
+
+com.stream.writer.command.TrailCommandHandlerConstraintTest.schemaActuallyEnforcesForeignKey -- Time elapsed: 0.008 s <<< FAILURE!
+java.lang.AssertionError:
+Expecting code to raise a throwable.
+	at com.stream.writer.command.TrailCommandHandlerConstraintTest.schemaActuallyEnforcesForeignKey(TrailCommandHandlerConstraintTest.java:111)
+```
+
+브리핑에서 요구한 두 테스트(`realForeignKeyViolationBecomesIllegalArgumentException`, `schemaActuallyEnforcesForeignKey`)가 정확히 실패했고, 추가로 `deletingStreamCascadesToTrails`도 함께 실패했다(ON DELETE CASCADE 자체가 FK에 딸린 옵션이므로 FK가 없으면 cascade도 없어져 당연한 결과). 세 테스트 모두 실제 FK 제약이 없으면 통과할 수 없다는 것을 확인했다 — 이 테스트들은 우연히 통과하는 것이 아니라 스키마의 FK 제약에 실제로 의존한다.
+
+`git checkout services/writer/src/test/resources/schema.sql`로 되돌린 뒤 워킹 트리가 깨끗함을 확인했고, 같은 테스트를 재실행해 `Tests run: 6, Failures: 0, Errors: 0`으로 복구됨을 확인했다.
+
+### Step 4: Docker 없이도 빌드가 깨지지 않는지 확인
+
+```
+$ grep -n "EnabledIfDockerAvailable" services/writer/src/test/java/com/stream/writer/command/TrailCommandHandlerPostgresTest.java
+17:import org.testcontainers.junit.jupiter.EnabledIfDockerAvailable;
+45:// Docker가 없으면 실패가 아니라 skip된다(@EnabledIfDockerAvailable).
+49:@EnabledIfDockerAvailable
+```
+
+import 줄(17)과 애노테이션 줄(49) 2줄에 더해, 그 사이 설명 주석(45)에서도 이름이 언급되어 총 3줄이 매치됐다(브리핑이 예상한 2줄 + 주석 1줄). 애노테이션이 클래스에 정확히 붙어 있음을 확인했으므로 Docker 미가용 시 실패가 아니라 skip으로 처리된다.
+
+### Step 5: Task 4가 실제로 관찰한 PostgreSQL 에러 문자열 (원문)
+
+writer 전체 테스트 실행 중 Hibernate `SqlExceptionHelper`가 실제 PostgreSQL(Testcontainers postgis 컨테이너)로부터 받아 로그로 남긴 에러 문자열:
+
+FK 위반:
+```
+ERROR: insert or update on table "trails" violates foreign key constraint "trails_stream_id_fkey"
+```
+
+UNIQUE 위반:
+```
+ERROR: duplicate key value violates unique constraint "trails_stream_id_camera_number_key"
+```
+
+두 문자열 모두 소문자 제약 이름(`trails_stream_id_fkey`, `trails_stream_id_camera_number_key`)을 그대로 담고 있고, `TrailCommandHandlerPostgresTest`의 `postgresErrorMessageActuallyContainsLowercaseConstraintName`/`postgresUniqueErrorMessageActuallyContainsLowercaseConstraintName` 테스트가 `assertThat(message).contains(...)`로 이를 직접 단언한다. `TrailCommandHandler`가 매칭하는 제약 이름 문자열이 실제 운영 Postgres가 내보내는 에러 메시지와 정확히 일치함을 실측으로 확인했다.
+
+### 종합
+
+Task 1~4에서 추가한 테스트는 전부 실제 스키마 제약에 의존하며, 그중 어느 것도 제약 없이 우연히 통과하지 않는다. Testcontainers 기반 테스트는 Docker 유무에 따라 정상적으로 실행/스킵되고, 실행됐을 때 관찰하는 에러 문자열은 운영 PostgreSQL이 실제로 내보내는 문자열과 바이트 단위로 일치한다.
