@@ -983,6 +983,19 @@ git commit -m "docs: 테스트 스키마 제약 도입의 검증 결과 기록"
 
 ## 후속 작업 (이 계획엔 포함 안 함, 참고용)
 
+### 최우선: `direction` 길이 미검증으로 500이 나간다 (원래 버그와 동일 클래스)
+
+전체 브랜치 리뷰에서 실측으로 발견됐다. `TrailCommandHandler.handle`은 `streamId`, `cameraNumber`, `location`, `status`를 검증하지만 **`direction`은 검증하지 않는다.** 컬럼은 `VARCHAR(50)`이다(`init-db.sql:24`, 테스트 스키마 27행). 51자를 보내면 두 엔진이 각각 이렇게 낸다:
+
+- PostgreSQL: `ERROR: value too long for type character varying(50)`
+- H2: `Value too long for column "DIRECTION CHARACTER VARYING(50)"`
+
+두 문자열 어디에도 `trails_stream_id_fkey`나 `trails_stream_id_camera_number_key`가 없으므로 핸들러의 catch 블록이 그대로 rethrow하고, **클라이언트는 잘못된 입력에 대해 500을 받는다.** 이 브랜치가 존재하는 이유였던 "없는 stream_id → 500" 버그와 구조가 동일하다.
+
+이번 작업으로 이걸 잡을 수 있는 스키마는 갖춰졌지만(테스트 스키마의 `direction`도 `VARCHAR(50)`이다) 잡는 테스트는 아직 없다. 수정하려면 핸들러에 길이 검증을 추가하고(→ 400), 새 스키마 위에서 진짜 오버플로우를 일으키는 테스트를 쓰면 된다.
+
+### 그 외
+
 - **`apps/backend` 에러 본문 중첩 정리**: `{"error":"Invalid trail data","message":"Writer rejected the trail data: {\"error\":\"...\"}"}` 처럼 JSON이 문자열 안에 이스케이프돼서 들어간다. `TrailServiceImpl.create`에서 writer 응답의 `error` 필드만 뽑아 쓰면 된다.
 - **`GlobalExceptionHandler`의 "Invalid stream geometry" 문구가 부정확**: geometry와 무관한 오류에도 나가고 클라이언트에 그대로 노출된다.
 - **`InvalidTrailGeometryException` → `InvalidTrailDataException` 리네임**
@@ -1078,3 +1091,14 @@ ERROR: duplicate key value violates unique constraint "trails_stream_id_camera_n
 **reader**는 사정이 다르다. Task 2에서 reader에 손댄 테스트는 모두 happy-path이고 `road_status` 값 하나(`'보통'` → `'주의'`)를 고쳤을 뿐, CHECK/FK/UNIQUE 위반을 일부러 일으켜 보는 테스트는 하나도 추가하지 않았다. 실제로 reader의 `schema.sql`에서 제약 6개(FK 3, UNIQUE 1, CHECK 2)를 전부 지워도 reader 테스트 스위트는 그대로 GREEN이다. 즉 reader 모듈 자체에는 "제약 없이 통과하지 않는다"고 말할 수 있는 테스트가 없다. 대신 `TestSchemaSyncTest`(writer/reader 양쪽에 하나씩 존재)가 reader의 `schema.sql`/`data.sql`이 writer의 사본과 바이트 단위로 동일한지 검증해서, reader 스키마가 writer 몰래 드리프트하는 것을 막는다. 이 테스트는 reader의 제약이 "제약으로서 올바르게 동작한다"는 것을 증명하지는 않는다 — writer 쪽에서 뮤테이션 테스트로 검증된 스키마를 reader가 그대로 베끼고 있다는 사실만 보증한다.
 
 정확히 어디까지 검증됐는지는 구분해둘 필요가 있다. 검증한 것은 **운영과 같은 이미지(`postgis/postgis:15-3.3-alpine`)와 같은 스키마 파일(`infra/scripts/init-db.sql`)을 쓰는 컨테이너**가 그 문자열을 내보낸다는 것이지, 운영 인스턴스에 붙어 대조한 것은 아니다. 이미지 태그와 스키마가 동일하므로 실질적으로 같다고 볼 근거는 충분하지만, 그 둘이 갈라지면 이 등식도 깨진다.
+
+### 리뷰에서 나온 나머지 관찰 (수정 안 함)
+
+- **`CaptureCommandHandler`는 제약 처리가 전혀 없다.** `captureRepository.save()`를 그대로 호출해서 `captures_trail_id_fkey`, `captures_stream_id_fkey`, `captures_road_status_check` 위반이 모두 미처리다. 게다가 `ImageAnalyzedConsumer.consume`이 모든 예외를 삼키고 정상 리턴하므로 Kafka 오프셋이 커밋되어 **메시지가 조용히 유실된다.** HTTP 경로가 아니라 500조차 나가지 않는다.
+- **CHECK 위반 메시지에 사용자 입력이 섞여 들어온다.** PostgreSQL의 CHECK 위반은 `DETAIL: Failing row contains (...)`에 모든 컬럼 값을 담는다. 핸들러가 메시지 전체를 `contains()`로 훑으므로, `camera_number`나 `direction`에 제약 이름을 그대로 넣으면 오분류가 가능하다. 지금은 `status`를 앱에서 먼저 검증하고 trails의 다른 제약이 전부 FK/UNIQUE라 도달 불가능하지만, CHECK 제약이 하나 추가되는 순간 살아난다. H2는 CHECK 메시지에 값을 담지 않으므로 이 경로를 재현하지 못한다.
+- **Testcontainers 테스트가 조용히 skip될 수 있다.** `@EnabledIfDockerAvailable`이라 Docker가 없거나 `api.version` 고정이 미래 Docker Engine과 안 맞으면 57 대신 52로 BUILD SUCCESS가 난다. 이 저장소엔 CI가 없어서 아무도 알아채지 못한다. CI가 생기면 skip 수를 검사하는 게 좋다.
+- **`postgis/postgis:15-3.3-alpine` 태그가 두 곳에 하드코딩돼 있다.** `TrailCommandHandlerPostgresTest`와 `infra/docker/docker-compose.yml`을 잇는 장치가 없어서 compose 쪽 이미지를 올리면 테스트만 옛 버전에 남는다 — "운영과 같은 이미지라서 같은 문자열"이라는 근거가 조용히 깨진다.
+- **`*.sql`에 git eol 속성이 없다.** `core.autocrlf=true`라 체크아웃 시 CRLF로 바뀌는데, 두 사본이 동일하게 변환되므로 `TestSchemaSyncTest`는 통과한다. 다만 한쪽만 `git checkout`하는 등 비대칭 조작에는 취약하다. `.gitattributes`에 `*.sql text eol=lf`를 추가하면 없어진다.
+- **`data.sql` 시드가 모든 `@DataJpaTest`의 암묵적 전제가 됐다.** 두 모듈의 모든 테스트에 streams 1~2, trails 1~3이 존재한다. 나중에 쓰는 테스트가 이 행들을 자기가 만든 것으로 착각하거나, 없는 id로 400을 검증하려다 1이나 2를 골라 엉뚱한 경로를 타게 될 수 있다. 시드의 존재와 모양을 단언하는 테스트가 하나 있으면 시드 변경이 조용히 다른 테스트를 왜곡하는 대신 큰 소리로 실패한다.
+- **`captures`는 IDENTITY RESTART를 하지 않았다.** 시드 행이 없어서 맞는 선택이지만, reader의 `CaptureRepositoryTest`가 `id=100`을 명시적으로 넣는다. H2의 IDENTITY 카운터는 테스트 트랜잭션 롤백과 함께 되돌아가지 않고 클래스 내에서 단조 증가한다. 현재 실행당 capture INSERT는 15건 정도라 100과는 거리가 멀지만, `data.sql` 주석이 경고하는 바로 그 위험이 여기만 무방비다.
+- **테스트 스키마 2벌 중복**: `TestSchemaSyncTest`가 드리프트는 막아주지만 중복 자체는 남는다. `packages/shared` test-jar로 공유하는 방안은 여전히 유효하다.
