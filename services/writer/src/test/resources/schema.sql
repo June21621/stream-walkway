@@ -1,5 +1,6 @@
 -- 이 파일은 운영 스키마(infra/scripts/init-db.sql)를 H2에 맞게 옮긴 것이다.
--- 제약 이름은 운영 PostgreSQL이 자동 생성하는 이름과 정확히 일치시켰다.
+-- FK/UNIQUE/CHECK 제약 이름은 운영 PostgreSQL이 자동 생성하는 이름과 정확히 일치시켰다.
+-- PK는 예외다: H2는 CONSTRAINT_2/9/B처럼 붙이지만 운영은 captures_pkey/trails_pkey/streams_pkey를 쓴다.
 -- TrailCommandHandler가 그 이름으로 FK/UNIQUE 위반을 구분하기 때문이다.
 -- 이름을 명시하지 않으면 H2가 CONSTRAINT_A67 같은 이름을 붙여 아무것도 검증할 수 없다.
 --

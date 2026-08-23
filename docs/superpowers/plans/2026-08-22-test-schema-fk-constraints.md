@@ -1071,6 +1071,10 @@ ERROR: duplicate key value violates unique constraint "trails_stream_id_camera_n
 
 ### 종합
 
-Task 1~4에서 추가한 테스트는 전부 실제 스키마 제약에 의존하며, 그중 어느 것도 제약 없이 우연히 통과하지 않는다. Testcontainers 기반 테스트는 Docker 유무에 따라 정상적으로 실행/스킵되고, 실행됐을 때 관찰하는 에러 문자열은 PostgreSQL 서버가 직접 생성한 것이다.
+이 문단은 처음에 "Task 1~4에서 추가한 테스트는 전부 실제 스키마 제약에 의존하며, 그중 어느 것도 제약 없이 우연히 통과하지 않는다"고 적었으나, 이는 writer 모듈에만 해당하는 사실이었고 reader 모듈까지 뭉뚱그린 과장이었다. 리뷰에서 실측한 결과를 반영해 아래처럼 두 모듈을 구분한다.
+
+**writer**는 Step 2~3의 뮤테이션 테스트로 직접 확인했다 — `schema.sql`의 FK 제약 줄을 주석 처리하면 `TrailCommandHandlerConstraintTest`의 3개 테스트가 실제로 FAIL했다. writer가 추가한 테스트는 우연히 통과하는 것이 아니라 스키마의 실제 제약에 의존한다. Testcontainers 기반 테스트(Task 4)는 Docker 유무에 따라 정상적으로 실행/스킵되고, 실행됐을 때 관찰하는 에러 문자열은 PostgreSQL 서버가 직접 생성한 것이다.
+
+**reader**는 사정이 다르다. Task 2에서 reader에 손댄 테스트는 모두 happy-path이고 `road_status` 값 하나(`'보통'` → `'주의'`)를 고쳤을 뿐, CHECK/FK/UNIQUE 위반을 일부러 일으켜 보는 테스트는 하나도 추가하지 않았다. 실제로 reader의 `schema.sql`에서 제약 6개(FK 2, UNIQUE 1, CHECK 2, 그리고 나머지)를 전부 지워도 reader 테스트 스위트는 그대로 GREEN이다. 즉 reader 모듈 자체에는 "제약 없이 통과하지 않는다"고 말할 수 있는 테스트가 없다. 대신 `TestSchemaSyncTest`(writer/reader 양쪽에 하나씩 존재)가 reader의 `schema.sql`/`data.sql`이 writer의 사본과 바이트 단위로 동일한지 검증해서, reader 스키마가 writer 몰래 드리프트하는 것을 막는다. 이 테스트는 reader의 제약이 "제약으로서 올바르게 동작한다"는 것을 증명하지는 않는다 — writer 쪽에서 뮤테이션 테스트로 검증된 스키마를 reader가 그대로 베끼고 있다는 사실만 보증한다.
 
 정확히 어디까지 검증됐는지는 구분해둘 필요가 있다. 검증한 것은 **운영과 같은 이미지(`postgis/postgis:15-3.3-alpine`)와 같은 스키마 파일(`infra/scripts/init-db.sql`)을 쓰는 컨테이너**가 그 문자열을 내보낸다는 것이지, 운영 인스턴스에 붙어 대조한 것은 아니다. 이미지 태그와 스키마가 동일하므로 실질적으로 같다고 볼 근거는 충분하지만, 그 둘이 갈라지면 이 등식도 깨진다.

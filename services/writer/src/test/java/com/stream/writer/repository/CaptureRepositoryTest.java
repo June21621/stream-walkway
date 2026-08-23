@@ -17,7 +17,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// @DataJpaTest: H2 인메모리 DB로 교체, ddl-auto: create-drop 자동 적용
+// @DataJpaTest: H2 인메모리 DB로 교체한다. ddl-auto는 각 모듈 application.yaml에서
+// none으로 고정돼 있어 테스트에서도 Hibernate가 테이블을 만들지 않는다 -
+// src/test/resources/schema.sql이 테이블을, data.sql이 시드 행을 만드는
+// 유일한 스키마 소스다.
 @DataJpaTest
 @DisplayName("Writer - CaptureRepository 테스트")
 class CaptureRepositoryTest {

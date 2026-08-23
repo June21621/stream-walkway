@@ -91,7 +91,7 @@ class CaptureCommandHandlerTest {
     @DisplayName("handle() - Redis 캐시 키는 'capture:latest:trail:{trailId}' 형식이다")
     void handle_usesCorrectRedisKey() {
         // given
-        CreateCaptureCommand command = new CreateCaptureCommand(42, 1, "/images/capture_042.jpg", "보통", 0.80);
+        CreateCaptureCommand command = new CreateCaptureCommand(42, 1, "/images/capture_042.jpg", "주의", 0.80);
         Capture savedCapture = new Capture();
         savedCapture.setTrailId(42);
         given(captureRepository.save(any(Capture.class))).willReturn(savedCapture);
