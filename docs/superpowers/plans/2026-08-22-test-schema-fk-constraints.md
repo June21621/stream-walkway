@@ -1071,4 +1071,6 @@ ERROR: duplicate key value violates unique constraint "trails_stream_id_camera_n
 
 ### 종합
 
-Task 1~4에서 추가한 테스트는 전부 실제 스키마 제약에 의존하며, 그중 어느 것도 제약 없이 우연히 통과하지 않는다. Testcontainers 기반 테스트는 Docker 유무에 따라 정상적으로 실행/스킵되고, 실행됐을 때 관찰하는 에러 문자열은 운영 PostgreSQL이 실제로 내보내는 문자열과 바이트 단위로 일치한다.
+Task 1~4에서 추가한 테스트는 전부 실제 스키마 제약에 의존하며, 그중 어느 것도 제약 없이 우연히 통과하지 않는다. Testcontainers 기반 테스트는 Docker 유무에 따라 정상적으로 실행/스킵되고, 실행됐을 때 관찰하는 에러 문자열은 PostgreSQL 서버가 직접 생성한 것이다.
+
+정확히 어디까지 검증됐는지는 구분해둘 필요가 있다. 검증한 것은 **운영과 같은 이미지(`postgis/postgis:15-3.3-alpine`)와 같은 스키마 파일(`infra/scripts/init-db.sql`)을 쓰는 컨테이너**가 그 문자열을 내보낸다는 것이지, 운영 인스턴스에 붙어 대조한 것은 아니다. 이미지 태그와 스키마가 동일하므로 실질적으로 같다고 볼 근거는 충분하지만, 그 둘이 갈라지면 이 등식도 깨진다.
