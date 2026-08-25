@@ -451,6 +451,48 @@ git commit -m "fix(writer): direction이 50자를 넘으면 500 대신 400 반�
 
 ## 후속 작업 (이 계획엔 포함 안 함, 참고용)
 
+### 최우선: WKT에 Z/ZM 좌표가 오면 여전히 500이다 (같은 버그 클래스)
+
+전체 브랜치 리뷰에서 실측으로 발견됐다. `LINESTRING Z(126.97 37.55 1, 126.98 37.56 2)`나
+`POINT Z(1 2 3)`를 보내면 `WKTReader.read()`가 3D 지오메트리를 정상 파싱하고 `(LineString)`/
+`(Point)` 캐스트도 통과해서 `save()`까지 도달한다. 그러면 컬럼 typmod가 거부한다:
+
+```
+DataIntegrityViolationException: Data conversion error converting "X'01020000a0...'
+(STREAMS: ""LOCATION"" GEOMETRY(LINESTRING, 4326) NOT NULL)" [22018-232]
+```
+
+두 컨트롤러의 `@ExceptionHandler`가 `DataIntegrityViolationException`을 나열하지 않고
+`TrailCommandHandler`의 catch도 제약 이름을 못 찾아 rethrow하므로 writer가 500을 내고,
+`StreamServiceImpl`이 `BadRequest`만 잡으므로 backend도 500을 그대로 전달한다.
+**이번 브랜치가 고친 것과 구조가 완전히 동일한 버그이며 같은 엔드포인트에 남아 있다.**
+(PostGIS에서는 확인하지 못했다 — 확인 시점에 Docker가 내려가 있었다.)
+
+### 상수가 운영 스키마가 아니라 H2 테스트 스키마에 묶여 있다
+
+리뷰어가 `infra/scripts/init-db.sql`의 두 컬럼 폭만 줄이고 상수와 H2 스키마는 그대로 두었더니
+**writer 스위트가 전부 green이었다.** `TestSchemaSyncTest`는 writer↔reader 사본만 비교하고,
+`init-db.sql`을 읽는 유일한 테스트인 `TrailCommandHandlerPostgresTest`에는 길이 케이스가 없으며
+Docker가 없으면 조용히 skip된다. 이번에는 주석을 정직하게 고치는 데 그쳤다.
+
+실질적 해결은 둘 중 하나다:
+- `TestSchemaSyncTest`를 확장해 `schema.sql`과 `init-db.sql`의 `VARCHAR(n)` 값을 비교한다.
+  Docker 없이 돌아가므로 이쪽이 더 견고하다.
+- `TrailCommandHandlerPostgresTest`(운영 `init-db.sql`을 그대로 적용한다)에 길이 케이스를 추가한다.
+  더 직접적이지만 Docker가 없으면 skip된다.
+
+### 길이 검증 근거 주석이 두 핸들러에 중복돼 있다
+
+`StreamCommandHandler`와 `TrailCommandHandler`에 8줄짜리 동일한 주석이 있다. 이미 한 번
+드리프트했다 — 커밋 `7b02aed`가 같은 문구를 세 군데에서 고쳐야 했다. PostgreSQL의 실제 계산
+규칙을 확인하는 날 두 핸들러 + 계획 문서 2곳 + 설계 문서 1곳, 총 5벌을 함께 고쳐야 하는데
+부분 수정을 잡아주는 테스트가 없다.
+
+### `StreamCommandHandlerConstraintTest`의 이름이 내용과 안 맞는다
+
+파일 이름은 `Constraint`인데 내용은 길이 테스트뿐이다. Trail 쪽은 진짜 제약 위반 테스트 클래스
+안에 길이 테스트를 별도 배너로 넣었다. 같은 종류의 테스트가 구조적으로 다른 두 곳에 산다.
+
 - **`CaptureCommandHandler`의 검증 누락 + Kafka 메시지 조용한 유실**: `captures`의 `image_path`(VARCHAR(500)), `road_status`(VARCHAR(10) + CHECK), `confidence`(DECIMAL(3,2), 최대 9.99), 그리고 `trail_id`/`stream_id` FK가 전부 미검증이다. 다만 Kafka 경로라 `ImageAnalyzedConsumer.consume`이 예외를 삼키고 정상 리턴해서 오프셋이 커밋되므로, 증상은 500이 아니라 **메시지 유실**이다. 검증만 추가하면 삼켜지는 예외 종류만 바뀌므로 재시도/DLQ 설계와 함께 다뤄야 한다.
 - **Testcontainers silent-skip**: Docker가 없으면 `TrailCommandHandlerPostgresTest` 5개가 skip되고 BUILD SUCCESS가 난다. 실측으로 재현했다. CI가 생기면 skip 개수를 검사하는 게 좋다.
 - **Bean Validation 전환 검토**: `@Size` 같은 선언적 검증으로 옮기면 상수와 컬럼의 이중 관리가 줄지만, 새 의존성과 예외 타입 변경이 따라오고 기존 `if` 검증들과 두 방식이 섞인다. 전환한다면 그것만으로 하나의 사이클이 되어야 한다.
