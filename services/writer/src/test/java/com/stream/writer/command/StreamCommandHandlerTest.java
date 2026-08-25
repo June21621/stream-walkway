@@ -91,4 +91,35 @@ class StreamCommandHandlerTest {
         org.junit.jupiter.api.Assertions.assertThrows(
                 ClassCastException.class, () -> handler.handle(command));
     }
+
+    @Test
+    @DisplayName("handle() - name이 255자를 넘으면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnOverLongName() {
+        // given: streams.name은 VARCHAR(255)라 256자는 DB가 거부한다.
+        // 검증이 없으면 저장까지 가서 DataIntegrityViolationException → 500이 된다.
+        CreateStreamCommand command =
+                new CreateStreamCommand("가".repeat(256), "LINESTRING(126.97 37.55, 126.98 37.56)");
+
+        // when & then
+        IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+        assertThat(e.getMessage()).contains("255");
+        verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
+    }
+
+    @Test
+    @DisplayName("handle() - name이 정확히 255자면 정상 저장된다 (경계값)")
+    void handle_acceptsNameAtExactLimit() throws ParseException {
+        // given
+        String atLimit = "가".repeat(255);
+        CreateStreamCommand command =
+                new CreateStreamCommand(atLimit, "LINESTRING(126.97 37.55, 126.98 37.56)");
+        given(streamRepository.save(any(Stream.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Stream result = handler.handle(command);
+
+        // then
+        assertThat(result.getName()).hasSize(255);
+    }
 }

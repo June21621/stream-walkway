@@ -12,6 +12,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class StreamCommandHandler {
 
+    // streams.name 컬럼이 VARCHAR(255)다 (infra/scripts/init-db.sql).
+    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다. H2가 VARCHAR 길이를
+    // 코드 단위로 세는 것을 실측했고, length() >= codePointCount()이므로
+    // 이 기준은 두 해석 모두의 상한이라 어느 엔진에서도 안전하다.
+    // 대가는 이모지 같은 astral 문자에 대해 PostgreSQL보다 약간 엄격할 수 있다는 것뿐이다.
+    private static final int MAX_NAME_LENGTH = 255;
+
     private final StreamRepository streamRepository;
 
     public StreamCommandHandler(StreamRepository streamRepository) {
@@ -26,6 +33,10 @@ public class StreamCommandHandler {
     public Stream handle(CreateStreamCommand command) throws ParseException {
         if (command.name() == null || command.name().isBlank()) {
             throw new IllegalArgumentException("name is required");
+        }
+        if (command.name().length() > MAX_NAME_LENGTH) {
+            throw new IllegalArgumentException(
+                    "name must be " + MAX_NAME_LENGTH + " characters or fewer");
         }
         if (command.location() == null || command.location().isBlank()) {
             throw new IllegalArgumentException("location is required (WKT)");
