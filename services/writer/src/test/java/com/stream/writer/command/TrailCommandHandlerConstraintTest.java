@@ -190,4 +190,45 @@ class TrailCommandHandlerConstraintTest {
 
         assertThat(trailRepository.findById(trailId)).isEmpty();
     }
+
+    // ─────────────────────────────────────────
+    // 아래 두 테스트는 제약 위반이 아니라 컬럼 길이 상한을 다룬다.
+    // 핸들러의 MAX_DIRECTION_LENGTH 상수가 H2 테스트 스키마
+    // (services/writer/src/test/resources/schema.sql)의 VARCHAR(50) 정의에서
+    // 드리프트하지 않는지 지킨다:
+    //   - 정확히 50자가 실제로 저장되어야 → 상수가 컬럼보다 엄격하지 않음
+    //   - 51자가 500이 아니라 400이어야   → 상수가 컬럼보다 느슨하지 않음
+    //
+    // 주의: 이 테스트는 production 스키마(infra/scripts/init-db.sql)는 전혀 읽지 않는다.
+    // 테스트 스키마와 production 스키마가 같은 값(50)을 쓰도록 맞춰두는 것은
+    // 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
+    // ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("direction이 51자면 DB에 닿기 전에 IllegalArgumentException(400 경로)이 된다")
+    void overLongDirectionIsRejectedBeforeReachingDatabase() {
+        TrailCommandHandler handler = new TrailCommandHandler(trailRepository, streamRepository);
+
+        assertThatThrownBy(() -> handler.handle(new CreateTrailCommand(
+                SEED_STREAM_ID, "CAM-LEN", "POINT(126.97 37.55)", "북".repeat(51), "active")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("direction")
+                .hasMessageContaining("50");
+    }
+
+    @Test
+    @DisplayName("direction이 정확히 50자면 실제로 저장된다 - 상수가 컬럼보다 엄격하지 않음을 증명한다")
+    void directionAtExactColumnLimitIsPersisted() throws ParseException {
+        TrailCommandHandler handler = new TrailCommandHandler(trailRepository, streamRepository);
+        String atLimit = "북".repeat(50);
+
+        Trail saved = handler.handle(new CreateTrailCommand(
+                SEED_STREAM_ID, "CAM-LEN-OK", "POINT(126.97 37.55)", atLimit, "active"));
+        entityManager.flush();
+        entityManager.clear();
+
+        Trail reloaded = trailRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getDirection()).isEqualTo(atLimit);
+        assertThat(reloaded.getDirection()).hasSize(50);
+    }
 }

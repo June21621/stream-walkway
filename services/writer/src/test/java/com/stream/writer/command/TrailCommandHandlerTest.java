@@ -199,4 +199,40 @@ class TrailCommandHandlerTest {
                 IllegalArgumentException.class, () -> handler.handle(command));
         assertThat(e.getMessage()).contains("does not exist");
     }
+
+    @Test
+    @DisplayName("handle() - direction이 50자를 넘으면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnOverLongDirection() {
+        // given: trails.direction은 VARCHAR(50)이라 51자는 DB가 거부한다.
+        // 검증이 없으면 저장까지 가서 DataIntegrityViolationException → 500이 된다.
+        CreateTrailCommand command = new CreateTrailCommand(
+                1L, "CAM-LEN", "POINT(126.97 37.55)", "북".repeat(51), "active");
+
+        // when & then
+        IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> handler.handle(command));
+        // 메시지까지 확인해야 한다. 이 단언이 없으면 스텁하지 않은 existsById가
+        // 기본값 false를 반환해 던지는 "stream_id=1 does not exist" 예외 때문에
+        // 검증이 없어도 테스트가 통과해버린다.
+        assertThat(e.getMessage()).contains("direction");
+        assertThat(e.getMessage()).contains("50");
+        verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
+    }
+
+    @Test
+    @DisplayName("handle() - direction이 정확히 50자면 정상 저장된다 (경계값)")
+    void handle_acceptsDirectionAtExactLimit() throws ParseException {
+        // given
+        String atLimit = "북".repeat(50);
+        CreateTrailCommand command = new CreateTrailCommand(
+                1L, "CAM-LEN-OK", "POINT(126.97 37.55)", atLimit, "active");
+        given(streamRepository.existsById(1L)).willReturn(true);
+        given(trailRepository.save(any(Trail.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Trail result = handler.handle(command);
+
+        // then
+        assertThat(result.getDirection()).hasSize(50);
+    }
 }
