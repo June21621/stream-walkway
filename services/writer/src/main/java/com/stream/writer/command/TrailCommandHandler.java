@@ -20,6 +20,16 @@ public class TrailCommandHandler {
 
     private static final Set<String> VALID_STATUSES = Set.of("active", "inactive");
 
+    // trails.direction 컬럼이 VARCHAR(50)이다 (infra/scripts/init-db.sql).
+    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다.
+    // H2가 VARCHAR 길이를 코드 단위로 세는 것은 실측으로 확인했다.
+    // PostgreSQL은 문자(코드포인트) 단위로 센다고 알려져 있으나 직접 확인하지는 않았다.
+    // 다만 length() >= codePointCount()이므로 이 기준은 두 해석 모두의 상한이고,
+    // 어느 쪽이 맞든 검증을 통과한 값은 컬럼에 들어간다. (VARCHAR를 바이트 길이로
+    // 세는 엔진에는 이 논리가 성립하지 않지만 이 프로젝트는 H2와 PostgreSQL만 쓴다.)
+    // 대가는 astral 문자(이모지 등)에 대해 PostgreSQL보다 엄격할 수 있다는 것뿐이다.
+    private static final int MAX_DIRECTION_LENGTH = 50;
+
     private final TrailRepository trailRepository;
     private final StreamRepository streamRepository;
 
@@ -72,6 +82,10 @@ public class TrailCommandHandler {
         String status = command.status() == null ? "active" : command.status();
         if (!VALID_STATUSES.contains(status)) {
             throw new IllegalArgumentException("Invalid status: " + status + " (must be 'active' or 'inactive')");
+        }
+        if (command.direction() != null && command.direction().length() > MAX_DIRECTION_LENGTH) {
+            throw new IllegalArgumentException(
+                    "direction must be " + MAX_DIRECTION_LENGTH + " characters or fewer");
         }
 
         WKTReader wktReader = new WKTReader(new GeometryFactory(new PrecisionModel(), Trail.SRID));
