@@ -126,17 +126,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // ─────────────────────────────────────────
-// 핸들러의 길이 상한 상수가 실제 컬럼 정의(streams.name VARCHAR(255))와
-// 어긋나지 않는지를 진짜 H2로 검증한다.
+// 핸들러의 길이 상한 상수가 H2 테스트 스키마
+// (services/writer/src/test/resources/schema.sql)의 VARCHAR(255) 정의에서
+// 드리프트하지 않는지 진짜 H2로 검증한다.
 //
 // 검증 로직 자체는 StreamCommandHandlerTest(mock)가 증명한다.
 // 이 클래스가 따로 존재하는 이유는 상수와 스키마가 따로 놀 수 있기 때문이다:
 //   - 정확히 255자가 실제로 저장되어야 → 상수가 컬럼보다 엄격하지 않음
 //   - 256자가 500이 아니라 400이어야   → 상수가 컬럼보다 느슨하지 않음
-// 두 방향이 모두 있어야 상수가 스키마에 묶인다.
+// 두 방향이 모두 있어야 상수가 (테스트) 스키마에 묶인다.
+//
+// 주의: 이 테스트는 production 스키마(infra/scripts/init-db.sql)는 전혀 읽지 않는다.
+// 테스트 스키마와 production 스키마가 같은 값(255)을 쓰도록 맞춰두는 것은
+// 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
 // ─────────────────────────────────────────
 @DataJpaTest
-@DisplayName("Writer - StreamCommandHandler 실제 컬럼 길이 제한 테스트 (H2)")
+@DisplayName("Writer - StreamCommandHandler 길이 상한 테스트 (H2 테스트 스키마 기준)")
 class StreamCommandHandlerConstraintTest {
 
     @Autowired
@@ -325,10 +330,15 @@ Expected: **FAIL.** `handle_throwsIllegalArgumentExceptionOnOverLongDirection`�
 ```java
     // ─────────────────────────────────────────
     // 아래 두 테스트는 제약 위반이 아니라 컬럼 길이 상한을 다룬다.
-    // 핸들러의 MAX_DIRECTION_LENGTH 상수가 실제 컬럼 정의(VARCHAR(50))에서
+    // 핸들러의 MAX_DIRECTION_LENGTH 상수가 H2 테스트 스키마
+    // (services/writer/src/test/resources/schema.sql)의 VARCHAR(50) 정의에서
     // 드리프트하지 않는지 지킨다:
     //   - 정확히 50자가 실제로 저장되어야 → 상수가 컬럼보다 엄격하지 않음
     //   - 51자가 500이 아니라 400이어야   → 상수가 컬럼보다 느슨하지 않음
+    //
+    // 주의: 이 테스트는 production 스키마(infra/scripts/init-db.sql)는 전혀 읽지 않는다.
+    // 테스트 스키마와 production 스키마가 같은 값(50)을 쓰도록 맞춰두는 것은
+    // 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
     // ─────────────────────────────────────────
 
     @Test
@@ -483,8 +493,9 @@ Docker가 없으면 조용히 skip된다. 이번에는 주석을 정직하게 �
 
 ### 길이 검증 근거 주석이 두 핸들러에 중복돼 있다
 
-`StreamCommandHandler`와 `TrailCommandHandler`에 8줄짜리 동일한 주석이 있다. 이미 한 번
-드리프트했다 — 커밋 `7b02aed`가 같은 문구를 세 군데에서 고쳐야 했다. PostgreSQL의 실제 계산
+`StreamCommandHandler`와 `TrailCommandHandler`에 8줄짜리 동일한 주석이 있다. 이 브랜치에서만
+**두 번 드리프트했다** — 커밋 `7b02aed`가 같은 문구를 세 군데에서 고쳤는데 설계 문서 사본을
+놓쳤고, 전체 브랜치 리뷰가 그걸 다시 잡아 한 번 더 고쳐야 했다. PostgreSQL의 실제 계산
 규칙을 확인하는 날 두 핸들러 + 계획 문서 2곳 + 설계 문서 1곳, 총 5벌을 함께 고쳐야 하는데
 부분 수정을 잡아주는 테스트가 없다.
 

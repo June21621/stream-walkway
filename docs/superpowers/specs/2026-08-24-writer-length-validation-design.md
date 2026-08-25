@@ -96,7 +96,9 @@ if (command.direction() != null && command.direction().length() > MAX_DIRECTION_
 
 `length()`(UTF-16 코드 단위)와 `codePointCount()`(코드포인트) 중 전자를 쓴다.
 
-`length() >= codePointCount()`가 항상 성립하므로, `length()` 기준 검증은 **두 해석 모두의 상한**이다. 따라서 `VARCHAR(n)`이 코드 단위를 세든 코드포인트를 세든, 이 검증을 통과한 값은 반드시 컬럼에 들어간다. PostgreSQL의 정확한 규칙을 몰라도 안전이 보장된다.
+`length() >= codePointCount()`가 항상 성립하므로, `length()` 기준 검증은 **코드 단위 해석과 코드포인트 해석 모두의 상한**이다. 따라서 `VARCHAR(n)`이 둘 중 어느 쪽을 세든, 이 검증을 통과한 값은 컬럼에 들어간다. PostgreSQL의 정확한 규칙을 확인하지 못했어도 이 두 경우 안에 있는 한 안전하다.
+
+**단, 이 논리는 세 번째 가능성에는 적용되지 않는다** — `VARCHAR`를 바이트 길이로 세는 엔진에는 성립하지 않는다. `"북".repeat(50)`은 UTF-16 코드 단위로 50이지만 UTF-8 바이트로는 150이다. 이 프로젝트는 H2와 PostgreSQL만 쓰고 둘 다 바이트로 세지 않으므로 실질적 문제는 없지만, 주장의 범위는 그 두 엔진까지다.
 
 대가는 astral 평면 문자(이모지 등)에 대해 PostgreSQL보다 엄격할 수 있다는 것이다. 방위(`direction`)와 하천 이름(`name`)에는 실질적 영향이 없다고 판단했다. 이 트레이드오프를 코드 주석에 명시한다.
 

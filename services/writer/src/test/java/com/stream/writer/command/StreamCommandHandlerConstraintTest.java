@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
 // ─────────────────────────────────────────
 @DataJpaTest
-@DisplayName("Writer - StreamCommandHandler 실제 컬럼 길이 제한 테스트 (H2)")
+@DisplayName("Writer - StreamCommandHandler 길이 상한 테스트 (H2 테스트 스키마 기준)")
 class StreamCommandHandlerConstraintTest {
 
     @Autowired
