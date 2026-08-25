@@ -458,4 +458,35 @@ git commit -m "fix(writer): direction이 50자를 넘으면 500 대신 400 반�
 
 ## 최종 검증
 
-(Task 2까지 끝난 뒤 채운다)
+### 전체 모듈 테스트 (2026-08-24)
+
+| 모듈 | 결과 | 기준선 대비 |
+|---|---|---|
+| shared | `Tests run: 30, Failures: 0, Errors: 0` | 변화 없음 |
+| reader | `Tests run: 33, Failures: 0, Errors: 1` | 변화 없음 (에러 1건은 기존 RED `ReaderApplicationTests.contextLoads`) |
+| writer | `Tests run: 66, Failures: 0, Errors: 0, Skipped: 5` | 58 → 66 (+8) |
+| backend | `Tests run: 36, Failures: 0, Errors: 5` | 변화 없음 (에러 5건은 기존 RED `CaptureControllerTest` 스텁) |
+
+writer의 `Skipped: 5`는 이 시점에 Docker 데몬이 내려가 있어 Testcontainers 클래스
+`TrailCommandHandlerPostgresTest`가 skip된 것이다. 회귀가 아니며, Docker가 살아 있으면
+`Skipped: 0`이 된다. 이번 작업은 PostgreSQL을 필요로 하지 않는다.
+
+### 상수가 스키마에 묶여 있는지 (변이 테스트)
+
+두 태스크 모두 상수를 일부러 컬럼보다 크게 바꿨을 때 진짜 DB 테스트가 실패하는 것을 확인했다.
+
+- `MAX_NAME_LENGTH`를 255 → 300으로: `overLongNameIsRejectedBeforeReachingDatabase`가
+  `DataIntegrityViolationException`(H2 `Value too long for column "NAME CHARACTER VARYING(255)"`,
+  SQLState 22001)으로 실패. 255로 되돌리니 통과.
+- `MAX_DIRECTION_LENGTH`를 50 → 100으로: `overLongDirectionIsRejectedBeforeReachingDatabase`가
+  같은 형태로 실패(`Value too long for column "DIRECTION CHARACTER VARYING(50)"`). 50으로 되돌리니 통과.
+
+반대 방향(상수가 컬럼보다 엄격해지는 경우)은 경계값 테스트가 잡는다. 정확히 255자/50자를
+`assertThrows` 없이 그대로 호출하므로, 상수를 낮추면 예상치 못한 예외로 실패한다.
+
+### RED이 엉뚱한 이유로 통과하지 않았는지
+
+Task 2의 mock 테스트는 함정이 있었고 계획이 예측한 형태 그대로 실패했다 — 검증이 없으면
+스텁하지 않은 `existsById`가 기본값 `false`를 반환해 `IllegalArgumentException`이 **어차피**
+던져진다. 예외 타입만 단언했다면 수정 전에도 통과했을 것이다. 실제 실패는 메시지 단언
+(`contains("direction")`)이 `"stream_id=1 does not exist"`와 맞지 않아 일어났다.
