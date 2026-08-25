@@ -20,7 +20,7 @@
 
 2. **경계값은 통과한다.** `direction` 정확히 50자, `name` 정확히 255자는 저장에 성공한다.
 
-3. **H2는 `VARCHAR(n)`에서 UTF-16 코드 단위를 센다.** 이모지 26개(`String.length()`=52, `codePointCount()`=26)를 `VARCHAR(50)`이 거부했다. 그래서 `String.length()`를 쓴다 — `length() >= codePointCount()`가 항상 성립하므로 두 해석 모두의 상한이고, 어느 엔진이든 통과한 값은 반드시 컬럼에 들어간다.
+3. **H2는 `VARCHAR(n)`에서 UTF-16 코드 단위를 센다(실측).** 이모지 26개(`String.length()`=52, `codePointCount()`=26)를 `VARCHAR(50)`이 거부했다. 그래서 `String.length()`를 쓴다 — PostgreSQL은 문자(코드포인트) 단위로 센다고 알려져 있으나 직접 확인하지는 않았다. `length() >= codePointCount()`가 항상 성립하므로 이 기준은 H2와 (알려진 바가 맞다면) PostgreSQL 두 해석 모두의 상한이 된다. 다만 VARCHAR를 바이트 길이로 세는 엔진에는 이 논리가 성립하지 않는다 — 이 프로젝트는 H2와 PostgreSQL만 쓴다.
 
 4. **컨트롤러 변경은 필요 없다.** `StreamController`와 `TrailController` 모두 `@ExceptionHandler({ParseException.class, ClassCastException.class, IllegalArgumentException.class})`를 이미 갖고 있어 400을 반환한다.
 

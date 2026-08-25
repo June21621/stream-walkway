@@ -13,14 +13,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // ─────────────────────────────────────────
-// 핸들러의 길이 상한 상수가 실제 컬럼 정의(streams.name VARCHAR(255))와
-// 어긋나지 않는지를 진짜 H2로 검증한다.
+// 핸들러의 길이 상한 상수가 H2 테스트 스키마(services/writer/src/test/resources/schema.sql)의
+// streams.name VARCHAR(255) 정의와 어긋나지 않는지를 진짜 H2로 검증한다.
 //
 // 검증 로직 자체는 StreamCommandHandlerTest(mock)가 증명한다.
 // 이 클래스가 따로 존재하는 이유는 상수와 스키마가 따로 놀 수 있기 때문이다:
 //   - 정확히 255자가 실제로 저장되어야 → 상수가 컬럼보다 엄격하지 않음
 //   - 256자가 500이 아니라 400이어야   → 상수가 컬럼보다 느슨하지 않음
-// 두 방향이 모두 있어야 상수가 스키마에 묶인다.
+// 두 방향이 모두 있어야 상수가 (테스트) 스키마에 묶인다.
+//
+// 주의: 이 테스트는 production 스키마(infra/scripts/init-db.sql)는 전혀 읽지 않는다.
+// 테스트 스키마와 production 스키마가 같은 값(255)을 쓰도록 맞춰두는 것은
+// 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
 // ─────────────────────────────────────────
 @DataJpaTest
 @DisplayName("Writer - StreamCommandHandler 실제 컬럼 길이 제한 테스트 (H2)")
@@ -42,6 +46,7 @@ class StreamCommandHandlerConstraintTest {
         assertThatThrownBy(() -> handler.handle(
                 new CreateStreamCommand("가".repeat(256), VALID_WKT)))
                 .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("name")
                 .hasMessageContaining("255");
     }
 

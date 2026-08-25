@@ -193,10 +193,15 @@ class TrailCommandHandlerConstraintTest {
 
     // ─────────────────────────────────────────
     // 아래 두 테스트는 제약 위반이 아니라 컬럼 길이 상한을 다룬다.
-    // 핸들러의 MAX_DIRECTION_LENGTH 상수가 실제 컬럼 정의(VARCHAR(50))에서
+    // 핸들러의 MAX_DIRECTION_LENGTH 상수가 H2 테스트 스키마
+    // (services/writer/src/test/resources/schema.sql)의 VARCHAR(50) 정의에서
     // 드리프트하지 않는지 지킨다:
     //   - 정확히 50자가 실제로 저장되어야 → 상수가 컬럼보다 엄격하지 않음
     //   - 51자가 500이 아니라 400이어야   → 상수가 컬럼보다 느슨하지 않음
+    //
+    // 주의: 이 테스트는 production 스키마(infra/scripts/init-db.sql)는 전혀 읽지 않는다.
+    // 테스트 스키마와 production 스키마가 같은 값(50)을 쓰도록 맞춰두는 것은
+    // 순전히 컨벤션이며, 그 일치를 확인하는 그린 테스트는 존재하지 않는다.
     // ─────────────────────────────────────────
 
     @Test
@@ -207,7 +212,8 @@ class TrailCommandHandlerConstraintTest {
         assertThatThrownBy(() -> handler.handle(new CreateTrailCommand(
                 SEED_STREAM_ID, "CAM-LEN", "POINT(126.97 37.55)", "북".repeat(51), "active")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("direction");
+                .hasMessageContaining("direction")
+                .hasMessageContaining("50");
     }
 
     @Test

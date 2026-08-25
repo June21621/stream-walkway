@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class StreamCommandHandler {
 
-    // streams.name 컬럼이 VARCHAR(255)다 (infra/scripts/init-db.sql).
+    // streams.name 컬럼이 VARCHAR(255)다 (infra/scripts/init-db.sql,
+    // services/writer/src/test/resources/schema.sql).
     // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다.
     // H2가 VARCHAR 길이를 코드 단위로 세는 것은 실측으로 확인했다.
     // PostgreSQL은 문자(코드포인트) 단위로 센다고 알려져 있으나 직접 확인하지는 않았다.

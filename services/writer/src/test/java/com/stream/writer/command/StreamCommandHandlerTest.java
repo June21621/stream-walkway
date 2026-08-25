@@ -103,6 +103,7 @@ class StreamCommandHandlerTest {
         // when & then
         IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class, () -> handler.handle(command));
+        assertThat(e.getMessage()).contains("name");
         assertThat(e.getMessage()).contains("255");
         verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
     }
