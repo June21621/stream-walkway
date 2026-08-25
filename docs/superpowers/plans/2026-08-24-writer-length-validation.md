@@ -191,10 +191,13 @@ Expected: **FAIL.** `overLongNameIsRejectedBeforeReachingDatabase`가 실패한�
 
 ```java
     // streams.name 컬럼이 VARCHAR(255)다 (infra/scripts/init-db.sql).
-    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다. H2가 VARCHAR 길이를
-    // 코드 단위로 세는 것을 실측했고, length() >= codePointCount()이므로
-    // 이 기준은 두 해석 모두의 상한이라 어느 엔진에서도 안전하다.
-    // 대가는 이모지 같은 astral 문자에 대해 PostgreSQL보다 약간 엄격할 수 있다는 것뿐이다.
+    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다.
+    // H2가 VARCHAR 길이를 코드 단위로 세는 것은 실측으로 확인했다.
+    // PostgreSQL은 문자(코드포인트) 단위로 센다고 알려져 있으나 직접 확인하지는 않았다.
+    // 다만 length() >= codePointCount()이므로 이 기준은 두 해석 모두의 상한이고,
+    // 어느 쪽이 맞든 검증을 통과한 값은 컬럼에 들어간다. (VARCHAR를 바이트 길이로
+    // 세는 엔진에는 이 논리가 성립하지 않지만 이 프로젝트는 H2와 PostgreSQL만 쓴다.)
+    // 대가는 astral 문자(이모지 등)에 대해 PostgreSQL보다 엄격할 수 있다는 것뿐이다.
     private static final int MAX_NAME_LENGTH = 255;
 ```
 
@@ -380,10 +383,13 @@ Expected: **FAIL.** `overLongDirectionIsRejectedBeforeReachingDatabase`가 실�
 
 ```java
     // trails.direction 컬럼이 VARCHAR(50)이다 (infra/scripts/init-db.sql).
-    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다. H2가 VARCHAR 길이를
-    // 코드 단위로 세는 것을 실측했고, length() >= codePointCount()이므로
-    // 이 기준은 두 해석 모두의 상한이라 어느 엔진에서도 안전하다.
-    // 대가는 이모지 같은 astral 문자에 대해 PostgreSQL보다 약간 엄격할 수 있다는 것뿐이다.
+    // 길이 비교는 String.length()(UTF-16 코드 단위)로 한다.
+    // H2가 VARCHAR 길이를 코드 단위로 세는 것은 실측으로 확인했다.
+    // PostgreSQL은 문자(코드포인트) 단위로 센다고 알려져 있으나 직접 확인하지는 않았다.
+    // 다만 length() >= codePointCount()이므로 이 기준은 두 해석 모두의 상한이고,
+    // 어느 쪽이 맞든 검증을 통과한 값은 컬럼에 들어간다. (VARCHAR를 바이트 길이로
+    // 세는 엔진에는 이 논리가 성립하지 않지만 이 프로젝트는 H2와 PostgreSQL만 쓴다.)
+    // 대가는 astral 문자(이모지 등)에 대해 PostgreSQL보다 엄격할 수 있다는 것뿐이다.
     private static final int MAX_DIRECTION_LENGTH = 50;
 ```
 
