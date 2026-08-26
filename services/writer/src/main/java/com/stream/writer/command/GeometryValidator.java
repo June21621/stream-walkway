@@ -13,7 +13,7 @@ import org.locationtech.jts.geom.Geometry;
 // 도달해 (H2 기준) DataIntegrityViolationException(SQLState 22018) → 500이 된다.
 // ⚠️ 이 22018/500 관찰은 전부 H2에서 실측한 것이다. Docker가 내려가 있어 이 브랜치는
 // PostgreSQL/PostGIS를 한 번도 실측하지 못했다. Z/M/ZM 거부는 PostGIS typmod도 같은
-// 의미론이라 안전하지만, POINT EMPTY가 22018인지는 PostGIS에서 확인 전이다.
+// 의미론일 것으로 보이지만, 이것도 POINT EMPTY와 마찬가지로 실측이 아니라 추론이다.
 //
 // ⚠️ 차원 판별에 CoordinateSequence.getDimension()을 쓰면 안 된다. JTS 1.19.0에서 실측한
 // 결과 순수 2D인 "POINT(126.97 37.55)"에도 3을 반환한다 — CoordinateArraySequence가 기본
