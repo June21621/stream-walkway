@@ -110,7 +110,14 @@ TDD로 RED를 먼저 만든다.
 
 - **핸들러 단위 테스트** (`StreamCommandHandlerTest`, `TrailCommandHandlerTest`, Mockito):
   Z/M/ZM/EMPTY 각각 `IllegalArgumentException` + 메시지 단언 + `save()` 미호출 verify.
-- **컨트롤러 테스트** (`StreamControllerTest`, `TrailControllerTest`): 대표 1건씩 400과 본문 단언.
+- **`GeometryColumnConstraintTest`** (진짜 H2, `@DataJpaTest`): 검증을 우회해 직접 저장했을 때
+  컬럼이 실제로 어떻게 반응하는지를 스키마에 묶는다 — 3D LineString과 `POINT EMPTY`는
+  `DataIntegrityViolationException`으로 거부되고, `LINESTRING EMPTY`는 받아준다는 비대칭을
+  재확인한다. **컨트롤러 테스트는 추가하지 않는다** — `StreamControllerTest`/`TrailControllerTest`는
+  핸들러를 `@MockBean`으로 갈아끼우고 예외를 스텁해서 던지므로, 지오메트리용을 하나 더 만들어도
+  `IllegalArgumentException → 400` 매핑만 검증하는 셈이 된다. 그 매핑은 기존
+  `create_returns400OnMissingRequiredField` 같은 테스트가 이미 커버하고 있어, 새로 만들면
+  예외 메시지만 다른 복제본이 된다.
 - **회귀**: 2D 정상 입력 201 유지, 다른 지오메트리 타입/SRID 접두사/점 하나짜리 LINESTRING의
   기존 400 경로 유지.
 - **범위 커밋**: `POINT(999 999)`와 `LINESTRING(999 999, 1000 1000)` 거부, 경계값

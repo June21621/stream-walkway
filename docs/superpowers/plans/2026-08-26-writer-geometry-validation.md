@@ -86,7 +86,7 @@
 - Consumes: `org.locationtech.jts.geom.Geometry`, `org.locationtech.jts.geom.Coordinate` (JTS 1.19.0).
 - Produces: `static void GeometryValidator.validateLocation(Geometry geometry)` — 패키지 전용(`com.stream.writer.command`). 빈 지오메트리이거나 좌표에 Z/M 값이 있으면 `IllegalArgumentException`을 던지고, 아니면 조용히 반환한다. Task 2가 두 핸들러에서 호출하고, Task 3이 좌표 범위 검사를 이 메서드에 덧붙인다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `services/writer/src/test/java/com/stream/writer/command/GeometryValidatorTest.java`를 새로 만든다:
 
@@ -184,7 +184,7 @@ class GeometryValidatorTest {
 }
 ```
 
-- [ ] **Step 2: 컴파일 실패를 확인한다**
+- [x] **Step 2: 컴파일 실패를 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -192,7 +192,7 @@ Run (`services/writer`에서):
 ```
 Expected: **FAIL.** `GeometryValidator` 심볼을 찾을 수 없다는 컴파일 에러가 난다(`cannot find symbol: class GeometryValidator`). 테스트가 실행조차 되지 않는 것이 정상이다.
 
-- [ ] **Step 3: 최소 구현을 쓴다**
+- [x] **Step 3: 최소 구현을 쓴다**
 
 `services/writer/src/main/java/com/stream/writer/command/GeometryValidator.java`:
 
@@ -240,7 +240,7 @@ final class GeometryValidator {
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인한다**
+- [x] **Step 4: 테스트가 통과하는지 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -248,7 +248,7 @@ Run (`services/writer`에서):
 ```
 Expected: **PASS.** `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`
 
-- [ ] **Step 5: 커밋하지 않는다**
+- [x] **Step 5: 커밋하지 않는다**
 
 Task 2에서 핸들러 배선까지 끝낸 뒤 한 커밋으로 묶는다. 지금 커밋하면 아무도 호출하지 않는 죽은 코드가 히스토리에 남는다. 다음 태스크로 넘어간다.
 
@@ -267,7 +267,7 @@ Task 2에서 핸들러 배선까지 끝낸 뒤 한 커밋으로 묶는다. 지�
 - Consumes: `GeometryValidator.validateLocation(Geometry)` (Task 1), `StreamCommandHandler(StreamRepository)`, `TrailCommandHandler(TrailRepository, StreamRepository)`, `CreateStreamCommand(String name, String location)`, `CreateTrailCommand(Long streamId, String cameraNumber, String location, String direction, String status)`, `com.stream.shared.entity.Stream`(`Stream.SRID` 포함), `com.stream.shared.entity.Trail`(`Trail.SRID` 포함).
 - Produces: 두 핸들러가 Z/M/ZM/EMPTY 위치에 대해 `save()` 이전에 `IllegalArgumentException`을 던진다. Task 3이 같은 호출 지점을 그대로 쓴다(핸들러 재수정 없음).
 
-- [ ] **Step 1: Stream 핸들러의 실패하는 테스트를 쓴다**
+- [x] **Step 1: Stream 핸들러의 실패하는 테스트를 쓴다**
 
 `services/writer/src/test/java/com/stream/writer/command/StreamCommandHandlerTest.java`의 마지막 `@Test` 메서드 뒤, 클래스 닫는 `}` 앞에 추가:
 
@@ -307,7 +307,7 @@ Task 2에서 핸들러 배선까지 끝낸 뒤 한 커밋으로 묶는다. 지�
     }
 ```
 
-- [ ] **Step 2: Trail 핸들러의 실패하는 테스트를 쓴다**
+- [x] **Step 2: Trail 핸들러의 실패하는 테스트를 쓴다**
 
 `services/writer/src/test/java/com/stream/writer/command/TrailCommandHandlerTest.java`의 마지막 `@Test` 메서드 뒤, 클래스 닫는 `}` 앞에 추가:
 
@@ -348,7 +348,7 @@ Task 2에서 핸들러 배선까지 끝낸 뒤 한 커밋으로 묶는다. 지�
     }
 ```
 
-- [ ] **Step 3: 테스트를 돌려서 RED를 확인한다**
+- [x] **Step 3: 테스트를 돌려서 RED를 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -362,7 +362,7 @@ Expected: **FAIL.** 새로 넣은 네 개가 전부 실패한다.
 
 Trail 쪽이 이 함정 형태로 실패하는 것이 정상이다. 만약 Trail 테스트가 **통과**한다면 메시지 단언이 빠진 것이니 Step 2를 다시 확인한다.
 
-- [ ] **Step 4: `StreamCommandHandler`를 수정한다**
+- [x] **Step 4: `StreamCommandHandler`를 수정한다**
 
 `services/writer/src/main/java/com/stream/writer/command/StreamCommandHandler.java`의 `handle()` 끝부분을 바꾼다.
 
@@ -389,7 +389,7 @@ Trail 쪽이 이 함정 형태로 실패하는 것이 정상이다. 만약 Trail
         return streamRepository.save(stream);
 ```
 
-- [ ] **Step 5: `TrailCommandHandler`를 수정한다**
+- [x] **Step 5: `TrailCommandHandler`를 수정한다**
 
 `services/writer/src/main/java/com/stream/writer/command/TrailCommandHandler.java`의 `handle()`에서 WKT 파싱 블록을 바꾼다.
 
@@ -421,7 +421,7 @@ Trail 쪽이 이 함정 형태로 실패하는 것이 정상이다. 만약 Trail
         trail.setStatus(status);
 ```
 
-- [ ] **Step 6: 테스트가 통과하는지 확인한다**
+- [x] **Step 6: 테스트가 통과하는지 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -429,7 +429,7 @@ Run (`services/writer`에서):
 ```
 Expected: **PASS.** 실패 0.
 
-- [ ] **Step 7: 진짜 H2로 "왜 이 검증이 필요한가"를 고정하는 테스트를 만든다**
+- [x] **Step 7: 진짜 H2로 "왜 이 검증이 필요한가"를 고정하는 테스트를 만든다**
 
 `services/writer/src/test/java/com/stream/writer/command/GeometryColumnConstraintTest.java`:
 
@@ -543,7 +543,7 @@ class GeometryColumnConstraintTest {
 }
 ```
 
-- [ ] **Step 8: H2 테스트를 돌린다**
+- [x] **Step 8: H2 테스트를 돌린다**
 
 Run (`services/writer`에서):
 ```
@@ -555,7 +555,7 @@ Expected: **PASS, 4개.**
 
 `emptyLineStringIsAcceptedByTheColumn`이 실패한다면(= H2가 거부한다면) 조사 문서의 "LINESTRING EMPTY는 201" 실측과 어긋난다. 마찬가지로 보고한다.
 
-- [ ] **Step 9: writer 전체 스위트를 돌린다**
+- [x] **Step 9: writer 전체 스위트를 돌린다**
 
 Run (`services/writer`에서):
 ```
@@ -563,7 +563,7 @@ Run (`services/writer`에서):
 ```
 Expected: **PASS.** 기준선 66개에 이번 태스크에서 추가한 테스트 메서드 수만큼 늘어난다. `Skipped: 5`는 Docker가 내려가 있어서 나는 것으로 회귀가 아니다. **실패가 0인지만 본다.**
 
-- [ ] **Step 10: 커밋**
+- [x] **Step 10: 커밋**
 
 ```bash
 git add services/writer/src/main/java/com/stream/writer/command/GeometryValidator.java services/writer/src/main/java/com/stream/writer/command/StreamCommandHandler.java services/writer/src/main/java/com/stream/writer/command/TrailCommandHandler.java services/writer/src/test/java/com/stream/writer/command/GeometryValidatorTest.java services/writer/src/test/java/com/stream/writer/command/GeometryColumnConstraintTest.java services/writer/src/test/java/com/stream/writer/command/StreamCommandHandlerTest.java services/writer/src/test/java/com/stream/writer/command/TrailCommandHandlerTest.java
@@ -584,7 +584,7 @@ git commit -m "fix(writer): Z/M/ZM 좌표와 빈 지오메트리에 500 대신 4
 - Consumes: Task 1의 `GeometryValidator.validateLocation(Geometry)`, Task 2가 배선한 두 핸들러의 호출 지점.
 - Produces: 같은 메서드 시그니처(`static void validateLocation(Geometry)`). 핸들러 코드는 손대지 않는다. 경도 절댓값이 180을 넘거나 위도 절댓값이 90을 넘는 좌표가 하나라도 있으면 `IllegalArgumentException`을 던진다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `services/writer/src/test/java/com/stream/writer/command/GeometryValidatorTest.java`의 마지막 `@Test` 뒤, 클래스 닫는 `}` 앞에 추가:
 
@@ -630,7 +630,7 @@ git commit -m "fix(writer): Z/M/ZM 좌표와 빈 지오메트리에 500 대신 4
     }
 ```
 
-- [ ] **Step 2: 테스트를 돌려서 RED를 확인한다**
+- [x] **Step 2: 테스트를 돌려서 RED를 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -640,7 +640,7 @@ Expected: **FAIL.** `rejectsCoordinatesOutOfWgs84Bounds`가 `Expecting code to r
 
 `acceptsCoordinatesAtWgs84Bounds`와 `reportsDimensionBeforeBounds`는 **이미 통과한다.** 정상이다 — 이 둘은 RED를 만드는 게 목적이 아니라 구현이 과하게 엄격해지거나 검사 순서가 뒤집히는 것을 막는 회귀 방지용이다.
 
-- [ ] **Step 3: `GeometryValidator`에 범위 검사를 추가한다**
+- [x] **Step 3: `GeometryValidator`에 범위 검사를 추가한다**
 
 `services/writer/src/main/java/com/stream/writer/command/GeometryValidator.java`의 `final class GeometryValidator {` 본문 전체를 아래로 바꾼다(클래스 앞 주석 블록은 그대로 둔다):
 
@@ -682,7 +682,7 @@ final class GeometryValidator {
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인한다**
+- [x] **Step 4: 테스트가 통과하는지 확인한다**
 
 Run (`services/writer`에서):
 ```
@@ -690,7 +690,7 @@ Run (`services/writer`에서):
 ```
 Expected: **PASS, 8개.**
 
-- [ ] **Step 5: 두 핸들러에 범위 테스트를 한 건씩 추가한다**
+- [x] **Step 5: 두 핸들러에 범위 테스트를 한 건씩 추가한다**
 
 `services/writer/src/test/java/com/stream/writer/command/StreamCommandHandlerTest.java`의 클래스 닫는 `}` 앞에:
 
@@ -729,7 +729,7 @@ Expected: **PASS, 8개.**
     }
 ```
 
-- [ ] **Step 6: writer 전체 스위트를 돌린다**
+- [x] **Step 6: writer 전체 스위트를 돌린다**
 
 Run (`services/writer`에서):
 ```
@@ -737,7 +737,7 @@ Run (`services/writer`에서):
 ```
 Expected: **PASS.** 실패 0. `Skipped: 5`는 정상.
 
-- [ ] **Step 7: 나머지 세 모듈도 돌려서 회귀가 없는지 본다**
+- [x] **Step 7: 나머지 세 모듈도 돌려서 회귀가 없는지 본다**
 
 `packages/shared`를 먼저 install해야 reader/writer가 빌드된다.
 
@@ -755,7 +755,7 @@ Run (`apps/backend`에서):
 ```
 Expected: shared 30 통과. reader 33 중 1개 기존 RED. backend 36 중 5개 기존 RED. **기존 RED 개수가 늘어나지 않았는지만 확인한다.** 이 세 모듈은 이번 변경과 무관하므로 새 실패가 생기면 멈추고 보고한다.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 git add services/writer/src/main/java/com/stream/writer/command/GeometryValidator.java services/writer/src/test/java/com/stream/writer/command/GeometryValidatorTest.java services/writer/src/test/java/com/stream/writer/command/StreamCommandHandlerTest.java services/writer/src/test/java/com/stream/writer/command/TrailCommandHandlerTest.java
@@ -775,7 +775,7 @@ git commit -m "fix(writer): SRID 4326 범위를 벗어난 좌표를 400으로 �
 - Consumes: Task 2와 Task 3에서 실제로 관찰한 테스트 출력.
 - Produces: 없음(문서 전용).
 
-- [ ] **Step 1: 검증 결과 문서를 쓴다**
+- [x] **Step 1: 검증 결과 문서를 쓴다**
 
 `docs/superpowers/specs/2026-08-26-writer-geometry-validation-verification.md`에 **실제로 본 것만** 기록한다. 최소한 다음을 담는다:
 
@@ -787,15 +787,15 @@ git commit -m "fix(writer): SRID 4326 범위를 벗어난 좌표를 400으로 �
 
 과장하지 않는다. 돌리지 않은 것은 돌리지 않았다고 쓴다.
 
-- [ ] **Step 2: 설계 문서의 테스트 절을 실제와 맞춘다**
+- [x] **Step 2: 설계 문서의 테스트 절을 실제와 맞춘다**
 
 `docs/superpowers/specs/2026-08-26-writer-geometry-validation-design.md`의 "테스트" 절에 있는 **컨트롤러 테스트** 항목을 지우고, 그 자리에 `GeometryColumnConstraintTest`(진짜 H2)를 넣는다. 이유도 함께 적는다 — 컨트롤러 테스트는 핸들러를 `@MockBean`으로 갈아끼우고 예외를 스텁해 던지므로 `IllegalArgumentException → 400` 매핑만 검증하는데, 그건 기존 `create_returns400On...` 테스트가 이미 커버한다.
 
-- [ ] **Step 3: 계획 문서의 체크박스를 채운다**
+- [x] **Step 3: 계획 문서의 체크박스를 채운다**
 
 이 파일(`docs/superpowers/plans/2026-08-26-writer-geometry-validation.md`)의 `- [ ]`를 완료한 것만 `- [x]`로 바꾼다. 건너뛴 스텝이 있으면 그대로 두고 검증 문서에 이유를 적는다.
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add docs/
