@@ -88,4 +88,44 @@ class GeometryValidatorTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageNotContaining("2D");
     }
+
+    @Test
+    @DisplayName("validateLocation() - WGS84 범위를 벗어난 좌표는 거부한다")
+    void rejectsCoordinatesOutOfWgs84Bounds() {
+        for (String wkt : new String[]{
+                "POINT(999 999)",
+                "LINESTRING(999 999, 1000 1000)",
+                "POINT(180.1 37.55)",
+                "POINT(126.97 90.1)",
+                "POINT(-180.1 37.55)",
+                "POINT(126.97 -90.1)",
+                // 첫 좌표는 정상이고 두 번째만 범위를 벗어난 경우도 잡아야 한다
+                "LINESTRING(126.97 37.55, 999 37.56)"}) {
+            assertThatThrownBy(() -> GeometryValidator.validateLocation(parse(wkt)))
+                    .as(wkt)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("WGS84 bounds");
+        }
+    }
+
+    @Test
+    @DisplayName("validateLocation() - 경계값 ±180 / ±90은 통과시킨다")
+    void acceptsCoordinatesAtWgs84Bounds() {
+        for (String wkt : new String[]{
+                "POINT(180 90)",
+                "POINT(-180 -90)",
+                "LINESTRING(-180 -90, 180 90)"}) {
+            assertThatCode(() -> GeometryValidator.validateLocation(parse(wkt)))
+                    .as(wkt)
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Test
+    @DisplayName("validateLocation() - 범위와 차원이 둘 다 틀리면 차원 메시지가 먼저 나온다 (검사 순서)")
+    void reportsDimensionBeforeBounds() {
+        assertThatThrownBy(() -> GeometryValidator.validateLocation(parse("POINT Z(999 999 1)")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2D");
+    }
 }

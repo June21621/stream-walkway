@@ -157,4 +157,18 @@ class StreamCommandHandlerTest {
                 .hasMessageContaining("empty");
         verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
     }
+
+    @Test
+    @DisplayName("handle() - location 좌표가 WGS84 범위를 벗어나면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnOutOfBoundsLocation() {
+        // given: SRID 4326인데 위도 999는 존재할 수 없다. 컬럼은 이걸 막지 않아
+        // 검증이 없으면 201로 저장된다.
+        CreateStreamCommand command = new CreateStreamCommand("한강 산책로", "LINESTRING(999 999, 1000 1000)");
+
+        // when & then
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WGS84 bounds");
+        verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
+    }
 }

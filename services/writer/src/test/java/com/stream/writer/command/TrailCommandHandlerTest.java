@@ -270,4 +270,19 @@ class TrailCommandHandlerTest {
                 .hasMessageContaining("empty");
         verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
     }
+
+    @Test
+    @DisplayName("handle() - location 좌표가 WGS84 범위를 벗어나면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnOutOfBoundsLocation() {
+        // given: SRID 4326인데 위도 999는 존재할 수 없다. 컬럼은 이걸 막지 않아
+        // 검증이 없으면 201로 저장된다.
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-OOB", "POINT(999 999)", "북", "active");
+
+        // when & then
+        // 메시지 단언이 없으면 스텁하지 않은 existsById가 던지는 예외로 통과해버린다.
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WGS84 bounds");
+        verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
+    }
 }

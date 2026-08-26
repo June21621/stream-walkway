@@ -24,6 +24,12 @@ import org.locationtech.jts.geom.Geometry;
 // ─────────────────────────────────────────
 final class GeometryValidator {
 
+    // SRID 4326은 WGS84 경위도 좌표계다. 경도 ±180, 위도 ±90을 벗어난 값은 존재하지 않는다.
+    // 컬럼이 이 범위를 강제하지는 않으므로(POINT(999 999)가 실제로 저장된다) 500은 아니지만,
+    // 지도에 찍을 수 없는 좌표가 조용히 쌓이는 것을 막는다. 경계값은 포함한다.
+    private static final double MAX_ABS_LONGITUDE = 180.0;
+    private static final double MAX_ABS_LATITUDE = 90.0;
+
     private GeometryValidator() {
     }
 
@@ -31,10 +37,22 @@ final class GeometryValidator {
         if (geometry.isEmpty()) {
             throw new IllegalArgumentException("location must not be an empty geometry");
         }
+        // 루프를 두 번 도는 것은 의도적이다. 한 루프에서 두 검사를 하면
+        // "LINESTRING(999 999, 1 1 5)" 같은 입력에서 범위 메시지가 먼저 나와
+        // 어느 규칙을 어겼는지가 좌표 순서에 따라 달라진다. 지오메트리 하나의
+        // 좌표 수는 많아야 수백 개라 비용은 무의미하다.
         for (Coordinate coordinate : geometry.getCoordinates()) {
             if (!Double.isNaN(coordinate.getZ()) || !Double.isNaN(coordinate.getM())) {
                 throw new IllegalArgumentException(
                         "location must have 2D coordinates only (Z/M ordinates are not supported)");
+            }
+        }
+        for (Coordinate coordinate : geometry.getCoordinates()) {
+            if (Math.abs(coordinate.getX()) > MAX_ABS_LONGITUDE
+                    || Math.abs(coordinate.getY()) > MAX_ABS_LATITUDE) {
+                throw new IllegalArgumentException(
+                        "location coordinate out of WGS84 bounds: ("
+                                + coordinate.getX() + ", " + coordinate.getY() + ")");
             }
         }
     }
