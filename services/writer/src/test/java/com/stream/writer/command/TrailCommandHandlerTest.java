@@ -235,4 +235,39 @@ class TrailCommandHandlerTest {
         // then
         assertThat(result.getDirection()).hasSize(50);
     }
+
+    @Test
+    @DisplayName("handle() - location에 Z/M/ZM 좌표가 있으면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnNon2dLocation() {
+        // given: trails.location은 GEOMETRY(POINT,4326)이라 3D/4D 좌표를 컬럼이 거부한다.
+        for (String wkt : new String[]{
+                "POINT Z(126.97 37.55 1)",
+                "POINT M(126.97 37.55 1)",
+                "POINT ZM(126.97 37.55 1 9)"}) {
+            CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-GEO", wkt, "북", "active");
+
+            // when & then
+            // 메시지까지 확인해야 한다. 이 단언이 없으면 스텁하지 않은 existsById가
+            // 기본값 false를 반환해 던지는 "stream_id=1 does not exist" 예외 때문에
+            // 검증이 없어도 테스트가 통과해버린다.
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                    .as(wkt)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("2D");
+        }
+        verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
+    }
+
+    @Test
+    @DisplayName("handle() - location이 빈 지오메트리면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnEmptyLocation() {
+        // given: POINT EMPTY는 지금 컬럼까지 도달해 500이 된다.
+        CreateTrailCommand command = new CreateTrailCommand(1L, "CAM-EMPTY", "POINT EMPTY", "북", "active");
+
+        // when & then
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("empty");
+        verify(trailRepository, org.mockito.Mockito.never()).save(any(Trail.class));
+    }
 }

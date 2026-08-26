@@ -90,10 +90,16 @@ public class TrailCommandHandler {
         }
 
         WKTReader wktReader = new WKTReader(new GeometryFactory(new PrecisionModel(), Trail.SRID));
+        // 캐스트를 먼저 하고 검증한다. 그래야 Point가 아닌 WKT는 지금처럼
+        // ClassCastException 메시지로 400이 나가고 기존 동작이 바뀌지 않는다.
+        // 검증은 existsById 조회보다 앞이라 잘못된 지오메트리로는 DB를 건드리지 않는다.
+        Point location = (Point) wktReader.read(command.location());
+        GeometryValidator.validateLocation(location);
+
         Trail trail = new Trail();
         trail.setStreamId(command.streamId());
         trail.setCameraNumber(command.cameraNumber());
-        trail.setLocation((Point) wktReader.read(command.location()));
+        trail.setLocation(location);
         trail.setDirection(command.direction());
         trail.setStatus(status);
 
