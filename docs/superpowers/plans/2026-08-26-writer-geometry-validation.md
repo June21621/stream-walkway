@@ -812,3 +812,13 @@ git commit -m "docs: 지오메트리 검증 작업의 최종 검증 결과 기�
 - 조사에서 이미 400이던 입력들(다른 지오메트리 타입, `SRID=3857;` 접두사, 점 하나짜리 LINESTRING)의 동작이 그대로다.
 - writer 스위트 실패 0. 나머지 세 모듈의 기존 RED 개수가 늘지 않았다.
 - 커밋 3개(기능 2 + 문서 1)로 나뉘어 있다.
+
+---
+
+## 후속 작업
+
+전체 브랜치 코드 리뷰에서 나온, 지금 구현하지 않고 기록만 해두는 항목이다.
+
+1. **PostGIS 실측.** Docker가 복구되면 `geometry(Point,4326)` 컬럼에 `POINT EMPTY`를, `geometry(LineString,4326)` 컬럼에 `LINESTRING Z(...)`를 각각 검증 우회 상태로 직접 저장해보고 실제 PostGIS 동작(성공/실패, 에러 코드)을 `docs/superpowers/specs/2026-08-25-writer-geometry-validation-findings.md`에 추가한다. `GeometryValidator.java`의 헤더 주석과 검증 문서(`2026-08-26-writer-geometry-validation-verification.md` §5)가 H2 실측을 PostGIS로 일반화한 부분을 이 실측으로 확정하거나 정정한다. 특히 `POINT EMPTY`가 PostGIS typmod를 통과해 저장된다면, 이 브랜치의 Trail EMPTY 거부는 버그 수정이 아니라 프로덕션 동작을 바꾸는 정책 변경이 된다.
+
+2. **API 문서에 검증 규칙 부재.** `docs/api-specs/stream-walkway.postman_collection.json`은 Stream/Trail 생성 엔드포인트를 문서화하지만 이번에 추가된 세 가지 검증 규칙(빈 지오메트리 거부, Z/M/ZM 거부, WGS84 범위 밖 좌표 거부)은 어디에도 기록되어 있지 않다. 그중 두 가지(`LINESTRING EMPTY`, 범위 밖 좌표)는 이전까지 성공하던 요청을 400으로 바꾸는 것이라, API 소비자가 이 계약을 실제로 요청을 날려보기 전까지는 알 방법이 없다. 컬렉션에 검증 규칙과 에러 메시지를 문서화한다.

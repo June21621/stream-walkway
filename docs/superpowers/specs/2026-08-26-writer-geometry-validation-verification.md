@@ -15,12 +15,16 @@
 
 Task 3 완료 시점(`43d6bd5` 이후)의 최종 상태다. 각 줄의 출처를 옆에 적는다.
 
-| 모듈 | 기준선 | 최종 | 실패/에러 | 스킵 | 증감 | 출처 |
-|---|---|---|---|---|---|---|
-| `packages/shared` | 30 passing, 0 skip | 30 passing, 0 skip | 0 | 0 | 없음 | task-3-report.md Step 7 |
-| `services/writer` | 66 passing, 5 skip (71 total) | 84 passing, 5 skip (89 total) | 0 | 5 | +18개 테스트 메서드 추가, 실패 0 | task-2-report.md("What I tested"), task-3-report.md("Full-suite verification") |
-| `services/reader` | 33 중 1개 기존 RED(`ReaderApplicationTests.contextLoads`, Postgres 필요) | 동일: 33 중 1개 에러 | 1 (기존과 동일) | 0 | 없음(이 브랜치는 reader를 건드리지 않음) | task-3-report.md Step 7 |
-| `apps/backend` | 36 중 5개 기존 RED(`CaptureControllerTest`, `UnsupportedOperationException: Not implemented`) | 동일: 36 중 5개 에러 | 5 (기존과 동일) | 0 | 없음(이 브랜치는 backend를 건드리지 않음) | task-3-report.md Step 7 |
+표의 `Tests run`은 전부 Surefire가 보고하는 원래 숫자다. **Surefire의 `Tests run`에는
+스킵된 테스트가 이미 포함된다** — 실제로 실행되어 통과한 테스트 수는 `Tests run - Skipped`다.
+아래 네 줄 모두 이 관례로 통일했다.
+
+| 모듈 | 기준선 (Tests run / Skipped) | 최종 (Tests run / Skipped) | 실패/에러 | 증감 | 출처 |
+|---|---|---|---|---|---|
+| `packages/shared` | 30 / 0 | 30 / 0 | 0 | 없음 | task-3-report.md Step 7 |
+| `services/writer` | 66 / 5 (61건 실행·통과) | 84 / 5 (79건 실행·통과) | 0 | +18개 테스트 메서드 추가, 실패 0 | task-2-report.md("What I tested"), task-3-report.md("Full-suite verification") |
+| `services/reader` | 33 중 1개 기존 RED(`ReaderApplicationTests.contextLoads`, Postgres 필요) | 동일: 33 중 1개 에러 | 1 (기존과 동일) | 없음(이 브랜치는 reader를 건드리지 않음) | task-3-report.md Step 7 |
+| `apps/backend` | 36 중 5개 기존 RED(`CaptureControllerTest`, `UnsupportedOperationException: Not implemented`) | 동일: 36 중 5개 에러 | 5 (기존과 동일) | 없음(이 브랜치는 backend를 건드리지 않음) | task-3-report.md Step 7 |
 
 writer의 증가분 세부 내역(두 리포트의 합산):
 - Task 1: `GeometryValidatorTest` 5개 신규.
@@ -104,6 +108,10 @@ Task 2 리포트는 실제 관찰된 SQL 예외까지 인용한다. 3D LineStrin
 **실측하지 않았다.** 두 리포트 모두 Docker 데몬이 이 작업 전 구간에서 내려가 있었다고 기록한다. `WriterApplicationTests`(Testcontainers 기반)는 매 실행에서 `Skipped: 5`로 표시됐고, 이는 Task 2/Task 3 리포트 모두 "기존 상태이며 회귀가 아니다"라고 명시한다. 이번 검증 문서를 쓰는 시점에도 Docker를 다시 띄워 확인하지 않았다.
 
 측정하지 않았다는 사실과 별개로, 팀이 이를 받아들인 근거는 다음과 같다(측정이 아니라 논리적 근거임을 분명히 한다): `GeometryValidator.validateLocation()`은 `save()` 호출 이전, 즉 DB에 도달하기 전에 `IllegalArgumentException`을 던진다. 이 지점은 어떤 SQL 엔진을 쓰는지와 무관하다 — H2든 PostgreSQL/PostGIS든 검증에 걸린 요청은 애초에 DB 계층에 도달하지 않는다. 다만 이것은 코드 흐름을 근거로 한 추론이지, PostGIS로 직접 확인한 결과가 아니다. `GeometryColumnConstraintTest`가 실측한 컬럼 동작(3D/POINT EMPTY 거부, LINESTRING EMPTY 허용) 역시 H2 typmod 기준이며, PostGIS가 같은 typmod 의미론을 갖는다는 것은 조사 문서(`2026-08-25`)의 가정이지 실측이 아니다.
+
+**미확인 의심 사항 — `POINT EMPTY`가 가장 갈릴 가능성이 높은 지점이다.** PostGIS의 typmod 제약은 지오메트리 타입·SRID·Z/M 플래그를 검사하는데, `POINT EMPTY`는 이 세 조건을 전부 만족한다(타입은 POINT, SRID는 4326, Z/M 플래그는 없음). 따라서 PostGIS는 H2와 달리 `POINT EMPTY`를 22018 없이 그냥 **저장할 가능성이 있다** — H2의 22018은 typmod 거부가 아니라 H2 자체의 데이터 변환 처리 방식에서 온 것일 수 있기 때문이다. Z/M/ZM 거부는 typmod가 Z/M 플래그를 직접 검사하므로 PostGIS에서도 안전할 것으로 보이지만, `POINT EMPTY`는 그렇지 않다.
+
+이게 사실이라면, 조사 문서가 500으로 기록한 7가지 입력 중 Trail `POINT EMPTY` 1건은 H2에서만 500이었던 것이 되고, 이번 브랜치의 Trail EMPTY 거부는 "버그 수정"이 아니라 프로덕션(PostGIS)에서는 지금까지 성공하던 요청을 처음으로 400으로 막는 **정책 변경**이 된다. 다만 이는 코드로 확인한 것이 아니라 typmod 의미론에 대한 추론일 뿐이며, Docker가 복구되어 실제 PostGIS로 `POINT EMPTY`를 넣어보기 전까지는 미확인 의심으로만 남겨둔다(후속 작업 1번 참고).
 
 ## 6. 계획과 리포트 사이에서 발견한 사소한 불일치
 

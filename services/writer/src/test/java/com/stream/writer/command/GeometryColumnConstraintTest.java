@@ -104,4 +104,25 @@ class GeometryColumnConstraintTest {
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getLocation().getSRID()).isEqualTo(4326);
     }
+
+    // twoDimensionalGeometryIsPersisted가 Stream 쪽 양성 대조군이다. Trail 쪽에는
+    // emptyPointIsRejectedByTheColumn(예외 타입만 확인)의 대조군이 없었다 — 시드 데이터
+    // 누락이나 trails_status_check/유니크 제약 같은 무관한 회귀도 같은
+    // DataIntegrityViolationException을 던져 그 테스트를 통과시켜 버릴 수 있다.
+    @Test
+    @DisplayName("2D Point는 실제로 저장된다 - Trail 쪽 양성 대조군 (POINT EMPTY 거부 테스트가 " +
+            "저장 경로 전체가 아니라 지오메트리 검사만 잡아냄을 보장)")
+    void twoDimensionalPointIsPersisted() throws ParseException {
+        Trail trail = new Trail();
+        trail.setStreamId(SEED_STREAM_ID);
+        trail.setCameraNumber("CAM-2D-OK");
+        trail.setLocation((Point) wkt(Trail.SRID).read("POINT(126.97 37.55)"));
+        trail.setDirection("북");
+        trail.setStatus("active");
+
+        Trail saved = trailRepository.saveAndFlush(trail);
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getLocation().getSRID()).isEqualTo(4326);
+    }
 }

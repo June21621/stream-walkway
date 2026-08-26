@@ -122,9 +122,22 @@ class GeometryValidatorTest {
     }
 
     @Test
-    @DisplayName("validateLocation() - 범위와 차원이 둘 다 틀리면 차원 메시지가 먼저 나온다 (검사 순서)")
+    @DisplayName("validateLocation() - 범위와 차원이 둘 다 틀리면 차원 메시지가 먼저 나온다 (검사 순서, "
+            + "좌표별로 두 규칙이 갈리는 입력으로 두 루프 구조를 증명)")
     void reportsDimensionBeforeBounds() {
+        // POINT Z(999 999 1)은 한 좌표가 두 규칙을 동시에 어긴다. 융합된 단일 루프에서도
+        // 같은 좌표 안에서 Z 검사가 먼저이므로 "2D"가 나와 이 입력만으로는 두 루프 구조와
+        // 융합된 구조를 구별하지 못한다.
         assertThatThrownBy(() -> GeometryValidator.validateLocation(parse("POINT Z(999 999 1)")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2D");
+
+        // LINESTRING(999 999, 1 1 5)는 규칙 위반이 좌표마다 갈린다: 첫 좌표는 범위만 어기고
+        // (Z/M 없음), 두 번째 좌표는 Z만 어기고(범위 안). 두 루프 구조라면 전체 좌표에 대해
+        // Z 검사를 먼저 끝내므로 "2D"가 나온다. 만약 두 검사를 한 루프로 융합해 좌표 순서대로
+        // 처리한다면 첫 좌표에서 범위 위반이 먼저 걸려 "WGS84 bounds"가 나온다 — 즉 이 입력만이
+        // 두 구조를 실제로 구별한다.
+        assertThatThrownBy(() -> GeometryValidator.validateLocation(parse("LINESTRING(999 999, 1 1 5)")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("2D");
     }

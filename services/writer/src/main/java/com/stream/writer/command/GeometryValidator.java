@@ -10,7 +10,10 @@ import org.locationtech.jts.geom.Geometry;
 // (infra/scripts/init-db.sql:14,23 / services/writer/src/test/resources/schema.sql:19,27).
 // 이 typmod는 2D 지오메트리만 받는다. 그런데 JTS의 WKTReader는 Z/M/ZM 좌표를 아무 불평 없이
 // 파싱하고 (Point)/(LineString) 캐스트도 타입이 맞아 통과하므로, 검사가 없으면 save()까지
-// 도달해 DataIntegrityViolationException(SQLState 22018) → 500이 된다.
+// 도달해 (H2 기준) DataIntegrityViolationException(SQLState 22018) → 500이 된다.
+// ⚠️ 이 22018/500 관찰은 전부 H2에서 실측한 것이다. Docker가 내려가 있어 이 브랜치는
+// PostgreSQL/PostGIS를 한 번도 실측하지 못했다. Z/M/ZM 거부는 PostGIS typmod도 같은
+// 의미론이라 안전하지만, POINT EMPTY가 22018인지는 PostGIS에서 확인 전이다.
 //
 // ⚠️ 차원 판별에 CoordinateSequence.getDimension()을 쓰면 안 된다. JTS 1.19.0에서 실측한
 // 결과 순수 2D인 "POINT(126.97 37.55)"에도 3을 반환한다 — CoordinateArraySequence가 기본
@@ -41,13 +44,14 @@ final class GeometryValidator {
         // "LINESTRING(999 999, 1 1 5)" 같은 입력에서 범위 메시지가 먼저 나와
         // 어느 규칙을 어겼는지가 좌표 순서에 따라 달라진다. 지오메트리 하나의
         // 좌표 수는 많아야 수백 개라 비용은 무의미하다.
-        for (Coordinate coordinate : geometry.getCoordinates()) {
+        Coordinate[] coordinates = geometry.getCoordinates();
+        for (Coordinate coordinate : coordinates) {
             if (!Double.isNaN(coordinate.getZ()) || !Double.isNaN(coordinate.getM())) {
                 throw new IllegalArgumentException(
                         "location must have 2D coordinates only (Z/M ordinates are not supported)");
             }
         }
-        for (Coordinate coordinate : geometry.getCoordinates()) {
+        for (Coordinate coordinate : coordinates) {
             if (Math.abs(coordinate.getX()) > MAX_ABS_LONGITUDE
                     || Math.abs(coordinate.getY()) > MAX_ABS_LATITUDE) {
                 throw new IllegalArgumentException(
