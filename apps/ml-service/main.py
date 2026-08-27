@@ -37,25 +37,33 @@ async def consume():
 
     try:
         async for msg in consumer:
-            data = json.loads(msg.value)
-            print(f"[ml-service] 수신: {data}")
+            # try/except는 반드시 루프 "안쪽"이다. 바깥에 두면 첫 예외에서
+            # 루프를 빠져나가 뒤따르는 정상 메시지를 처리하지 못한다.
+            # 잘못된 메시지 하나가 컨슈머 전체를 멈추게 두지 않는 것이 목적이다.
+            try:
+                data = json.loads(msg.value)
+                print(f"[ml-service] 수신: {data}")
 
-            # TODO: 실제 ML 분석 로직 자리 (현재는 고정값)
-            result = {
-                "imageId": data.get("imageId"),
-                "trailId": data.get("trailId"),
-                "streamId": data.get("streamId"),
-                "imagePath": data.get("imagePath"),
-                "roadStatus": "양호",
-                "confidence": 0.95,
-                "analyzedAt": data.get("timestamp"),
-            }
+                # TODO: 실제 ML 분석 로직 자리 (현재는 고정값)
+                result = {
+                    "imageId": data.get("imageId"),
+                    "trailId": data.get("trailId"),
+                    "streamId": data.get("streamId"),
+                    "imagePath": data.get("imagePath"),
+                    "roadStatus": "양호",
+                    "confidence": 0.95,
+                    "analyzedAt": data.get("timestamp"),
+                }
 
-            await producer.send(
-                "image.analyzed",
-                value=json.dumps(result).encode(),
-            )
-            print(f"[ml-service] 발행 → image.analyzed: {result}")
+                await producer.send(
+                    "image.analyzed",
+                    value=json.dumps(result).encode(),
+                )
+                print(f"[ml-service] 발행 → image.analyzed: {result}")
+            except Exception as e:
+                # 넓게 잡는다. JSON 파싱뿐 아니라 발행 실패도 같은 이유로
+                # 루프를 죽여서는 안 되고, 어느 쪽이든 이 메시지는 버린다.
+                print(f"[ml-service] 메시지 처리 실패, 건너뜀: {e}")
     finally:
         await consumer.stop()
         await producer.stop()
