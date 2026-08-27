@@ -6,7 +6,11 @@ import com.stream.reader.repository.CaptureRepository;
 import com.stream.shared.dto.CaptureView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -32,14 +36,59 @@ public class CaptureController {
         this.objectMapper = objectMapper;
     }
 
+    // 정렬 키 화이트리스트. API 명세에 created_at 하나뿐이고, 임의 문자열을
+    // Sort.by()에 그대로 넘기면 엔티티에 없는 속성명일 때 500이 난다.
+    // 값은 JPA 엔티티의 속성명이다(DB 컬럼명 created_at이 아니라 createdAt).
+    private static final Map<String, String> SORT_KEYS = Map.of("created_at", "createdAt");
+
+    // 애노테이션 defaultValue는 String 컴파일 타임 상수만 받는다.
+    private static final String DEFAULT_LIMIT = "20";
+
     // ─────────────────────────────────────────
-    // 전체 조회 (PostgreSQL)
+    // 목록 조회 (PostgreSQL)
+    // stream_id / trail_id 필터, limit 개수 제한, sort 정렬 키를 받는다.
+    // 넷 다 선택적이며 기본값은 전체 / 20건 / createdAt 내림차순이다.
     // ─────────────────────────────────────────
     @GetMapping
-    public List<CaptureView> getAll() {
-        return captureRepository.findAll().stream()
+    public List<CaptureView> getAll(
+            @RequestParam(value = "stream_id", required = false) Integer streamId,
+            @RequestParam(value = "trail_id", required = false) Integer trailId,
+            @RequestParam(value = "limit", required = false, defaultValue = DEFAULT_LIMIT) Integer limit,
+            @RequestParam(value = "sort", required = false, defaultValue = "created_at") String sort) {
+
+        String property = SORT_KEYS.get(sort);
+        if (property == null) {
+            throw new IllegalArgumentException(
+                    "Unsupported sort key: " + sort + " (supported: " + SORT_KEYS.keySet() + ")");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive: " + limit);
+        }
+
+        // 최신순. 캡처는 최근 관측이 먼저 보여야 한다.
+        Pageable pageable = PageRequest.of(0, limit, Sort.by(property).descending());
+
+        return captureRepository.findFiltered(streamId, trailId, pageable).stream()
                 .map(CaptureView::from)
                 .toList();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidQuery(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // 단건 조회 (PostgreSQL)
+    // 본문 없는 404를 낸다 — 에러 본문 조립은 게이트웨이(backend) 책임이며,
+    // backend가 HttpClientErrorException.NotFound를 잡아 Optional.empty()로 바꾼다.
+    // ─────────────────────────────────────────
+    @GetMapping("/{id}")
+    public ResponseEntity<CaptureView> getById(@PathVariable Long id) {
+        return captureRepository.findById(id)
+                .map(CaptureView::from)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // ─────────────────────────────────────────
