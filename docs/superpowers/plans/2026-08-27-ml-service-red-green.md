@@ -352,7 +352,7 @@ Expected: `28 passed`. 이 숫자를 그대로 쓴다. 추정하지 않는다.
 
 - [ ] **Step 3: 요약표와 RED 상세를 갱신한다**
 
-요약표의 ml-service 행을 `28 | 28 | 0 | 0`으로. 합계는 `235 | 217 | 18 | 0`이 된다 (기존 GREEN 204 + 13, RED 31 - 13).
+요약표의 ml-service 행을 `28 | 28 | 0 | 0`으로. 합계는 `251 | 238 | 13 | 0`이 된다 (기존 GREEN 225 + 13, RED 26 - 13). **실행 시점에 실측값을 다시 뽑아 확인할 것** — 아래 로드맵 표에 적힌 기준선이 그때도 맞는지 먼저 보라.
 
 "RED 테스트 상세"의 "ML Service — 13개 RED" 절을 통째로 지우고, "다음 단계" 블록의 1번 항목을 완료 표시로 옮긴다.
 
@@ -363,7 +363,7 @@ git add docs/tdd-test-plan.md
 git commit -m "docs: ml-service RED 해소를 TDD 현황표에 반영
 
 ml-service 28개가 전부 GREEN이 되어 RED 13개가 사라졌다. 전체는
-235개 중 GREEN 217 / RED 18이 된다. 수치는 pytest 실행 결과를 그대로
+251개 중 GREEN 238 / RED 13이 된다. 수치는 pytest 실행 결과를 그대로
 옮긴 것이며 추정이 아니다."
 ```
 
@@ -402,7 +402,7 @@ ml-service 28개가 전부 GREEN이 되어 RED 13개가 사라졌다. 전체는
 
 **이 항목은 brainstorming부터 시작해야 한다.** 테스트가 명세 역할을 하는 ml-service와 달리 설계 결정이 여럿 남아 있다.
 
-### 그다음: backend Capture RED 5개 (`feature/capture-gateway`)
+### ~~그다음: backend Capture RED 5개~~ — 완료 (2026-08-27, main 머지 `622fb75`)
 
 `CaptureController`/`CaptureServiceImpl`이 스텁이다. Stream·Trail과 같은 패턴이라 설계 결정은 거의 없지만 **선행 작업이 있다.**
 
@@ -418,9 +418,11 @@ reader가 제공하는 것은 `GET /captures`(전체)와 `GET /captures/trail/{t
 
 | 시점 | 전체 | GREEN | RED |
 |---|---|---|---|
-| 현재 | 235 | 204 | 31 |
-| ml-service 후 (+13) | 235 | 217 | 18 |
-| youtube-service 후 (+11) | 235 | 228 | 7 |
-| backend Capture 후 (+5) | 235\* | 233\* | 2 |
+| 계획 작성 시점 (2026-08-27) | 235 | 204 | 31 |
+| backend Capture 완료 후 — **현재 기준선** | 251 | 225 | 26 |
+| ml-service 후 (+13) | 251 | 238 | 13 |
+| youtube-service 후 (+11) | 251 | 249 | 2 |
 
-\* Capture 작업은 reader 확장에 새 테스트가 붙으므로 전체 개수 자체가 늘어난다 — 표의 235는 그 증가분을 뺀 값이다. 남는 RED 2개는 `ReaderApplicationTests`/`WriterApplicationTests`의 `contextLoads`로, 테스트 프로파일에 JDBC URL이 없어서 나는 설정 문제다. 기능 구현과 무관하므로 별도로 처리한다.
+**2026-08-27 갱신:** 이 계획을 쓴 뒤 backend Capture 조회 경로가 먼저 완료됐다(계획: `2026-08-27-capture-read-path.md`, main 머지 `622fb75`). 그 작업이 shared/reader/backend에 테스트 16개를 더해 전체가 235 → 251로 늘었고 backend RED 5개가 사라졌다. 위 표의 기준선을 그에 맞춰 고쳤다.
+
+youtube-service까지 끝내면 남는 RED 2개는 `ReaderApplicationTests`/`WriterApplicationTests`의 `contextLoads`다. 테스트 프로파일에 JDBC URL이 없어서 나는 설정 문제이며 기능 구현과 무관하므로 별도로 처리한다. youtube-service 작업은 새 테스트가 붙을 가능성이 높아 전체 개수가 251보다 늘어날 수 있다.
