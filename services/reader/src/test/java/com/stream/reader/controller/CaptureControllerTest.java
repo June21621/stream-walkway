@@ -135,6 +135,27 @@ class CaptureControllerTest {
     }
 
     @Test
+    @DisplayName("GET /captures?stream_id=&trail_id= - 빈 값 파라미터는 null 필터로 바인딩된다")
+    void getAll_bindsEmptyParamsAsNull() throws Exception {
+        // backend의 CaptureServiceImpl이 필터 없이 호출하면 Spring의 URI 템플릿
+        // 확장이 null을 빈 문자열로 만들어 "?stream_id=&trail_id=" 를 보낸다
+        // (DefaultUriBuilderFactory.expand 실측). backend 쪽 테스트는 RestClient를
+        // stub하므로 이 URI가 실제로 만들어지는 것을 보지 못한다.
+        // 그 경계를 여기서 고정한다.
+        given(captureRepository.findFiltered(eq(null), eq(null), any(Pageable.class)))
+                .willReturn(List.of());
+
+        mockMvc.perform(get("/captures")
+                        .param("stream_id", "")
+                        .param("trail_id", "")
+                        .param("limit", "20")
+                        .param("sort", "created_at"))
+                .andExpect(status().isOk());
+
+        verify(captureRepository).findFiltered(eq(null), eq(null), any(Pageable.class));
+    }
+
+    @Test
     @DisplayName("GET /captures?sort=drop_table - 허용하지 않는 정렬 키는 400을 반환한다")
     void getAll_returns400OnUnknownSortKey() throws Exception {
         mockMvc.perform(get("/captures").param("sort", "drop_table"))
