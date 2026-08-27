@@ -5,6 +5,9 @@ import com.stream.reader.repository.CaptureRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -18,7 +21,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -53,7 +59,8 @@ class CaptureControllerTest {
     void getAll_returns200WithCaptureList() throws Exception {
         // given
         Capture capture = new Capture();
-        given(captureRepository.findAll()).willReturn(List.of(capture));
+        given(captureRepository.findFiltered(eq(null), eq(null), any(Pageable.class)))
+                .willReturn(List.of(capture));
 
         // when & then
         mockMvc.perform(get("/captures"))
@@ -66,13 +73,81 @@ class CaptureControllerTest {
     @DisplayName("GET /captures - 캡처가 없으면 빈 배열을 200 OK로 반환한다")
     void getAll_returns200WithEmptyList() throws Exception {
         // given
-        given(captureRepository.findAll()).willReturn(List.of());
+        given(captureRepository.findFiltered(eq(null), eq(null), any(Pageable.class)))
+                .willReturn(List.of());
 
         // when & then
         mockMvc.perform(get("/captures"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /captures?trail_id=1&limit=2 - 필터와 개수 제한이 리포지토리에 전달된다")
+    void getAll_passesFilterAndLimitToRepository() throws Exception {
+        // given
+        given(captureRepository.findFiltered(eq(null), eq(1), any(Pageable.class)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/captures").param("trail_id", "1").param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+
+        // then
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(captureRepository).findFiltered(eq(null), eq(1), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(2);
+        assertThat(captor.getValue().getSort().getOrderFor("createdAt").getDirection())
+                .isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    @DisplayName("GET /captures - 파라미터가 없으면 limit 20, createdAt 내림차순이 기본값이다")
+    void getAll_usesDefaultLimitAndSort() throws Exception {
+        // given
+        given(captureRepository.findFiltered(eq(null), eq(null), any(Pageable.class)))
+                .willReturn(List.of());
+
+        // when
+        mockMvc.perform(get("/captures")).andExpect(status().isOk());
+
+        // then
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(captureRepository).findFiltered(eq(null), eq(null), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(20);
+        assertThat(captor.getValue().getSort().getOrderFor("createdAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("GET /captures?stream_id=3&trail_id=1 - 두 필터가 함께 전달된다")
+    void getAll_passesBothFilters() throws Exception {
+        // given
+        given(captureRepository.findFiltered(eq(3), eq(1), any(Pageable.class)))
+                .willReturn(List.of());
+
+        // when & then
+        mockMvc.perform(get("/captures").param("stream_id", "3").param("trail_id", "1"))
+                .andExpect(status().isOk());
+
+        verify(captureRepository).findFiltered(eq(3), eq(1), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("GET /captures?sort=drop_table - 허용하지 않는 정렬 키는 400을 반환한다")
+    void getAll_returns400OnUnknownSortKey() throws Exception {
+        mockMvc.perform(get("/captures").param("sort", "drop_table"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("GET /captures?limit=0 - 0 이하의 limit은 400을 반환한다")
+    void getAll_returns400OnNonPositiveLimit() throws Exception {
+        mockMvc.perform(get("/captures").param("limit", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     // ─────────────────────────────────────────
