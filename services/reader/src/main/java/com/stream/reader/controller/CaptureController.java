@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stream.reader.repository.CaptureRepository;
 import com.stream.shared.dto.CaptureView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/captures")
 public class CaptureController {
+
+    private static final Logger log = LoggerFactory.getLogger(CaptureController.class);
 
     private final CaptureRepository captureRepository;
     private final StringRedisTemplate redisTemplate;
@@ -48,20 +52,20 @@ public class CaptureController {
         String cached = redisTemplate.opsForValue().get(redisKey);
 
         if (cached != null) {
-            System.out.println("[reader] Redis 캐시 히트: " + redisKey);
+            log.debug("Redis 캐시 히트 key={}", redisKey);
             return Map.of("source", "redis", "data", cached);
         }
 
-        System.out.println("[reader] Redis 캐시 미스 → PostgreSQL 조회");
+        log.debug("Redis 캐시 미스, PostgreSQL 조회 key={}", redisKey);
         Optional<CaptureView> latest = captureRepository.findFirstByTrailIdOrderByCreatedAtDesc(trailId)
                 .map(CaptureView::from);
 
         if (latest.isPresent()) {
             try {
                 redisTemplate.opsForValue().set(redisKey, objectMapper.writeValueAsString(latest.get()));
-                System.out.println("[reader] Redis 캐시 재적재 완료: " + redisKey);
+                log.debug("Redis 캐시 재적재 완료 key={}", redisKey);
             } catch (JsonProcessingException e) {
-                System.err.println("[reader] Redis 캐시 재적재 실패: " + e.getMessage());
+                log.warn("Redis 캐시 재적재 실패 key={}", redisKey, e);
             }
         }
 
