@@ -126,9 +126,9 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../TestSchemaSyncTest.java` | 스키마 동기화 검증 | 1 | 1 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 16 | 16 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 17 | 17 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 + `@Sql` | 10 | 10 | 0 |
-| **합계** | | **40** | **39** | **1** |
+| **합계** | | **41** | **40** | **1** |
 
 > 엔티티 테스트는 `packages/shared`로 이동했다. reader에는 더 이상 `entity/CaptureTest.java`가 없다.
 
@@ -182,10 +182,10 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | backend | 42 | 42 | 0 | 0 |
 | youtube-service | 22 | 11 | 11 | 0 |
 | ml-service | 28 | 15 | 13 | 0 |
-| reader | 40 | 39 | 1 | 0 |
+| reader | 41 | 40 | 1 | 0 |
 | writer | 86 | 85 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **250** | **224** | **26** | **0** |
+| **합계** | **251** | **225** | **26** | **0** |
 
 > **이전 갱신(2026-08-16) 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다. 이번 표는 저장소의 모든 테스트를 실행해 집계한 값이다.
 
