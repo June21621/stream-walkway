@@ -8,7 +8,6 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "dist/**", "build/**", "target/**"]
     },
-    "lint": {},
     "test": {}
   }
 }
