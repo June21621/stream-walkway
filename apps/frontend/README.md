@@ -18,7 +18,9 @@ Stream Walkway 웹 프론트엔드. Next.js 16 App Router + React 19.
 `npm run build` 결과물은 `out/` 디렉터리이며, 정적 HTML과 `_next/static/` 에셋만 들어 있다.
 서버 런타임 산출물이 없으므로 S3, CloudFront, Nginx 등 어떤 정적 호스트에도 그대로 올릴 수 있다.
 
-`npm run start`(Node 서버)는 이 배포 모델에서 사용하지 않는다.
+`next start`(Node 서버)는 이 배포 모델에서 **동작하지 않는다.** `output: 'export'`에서 실행하면
+Next가 `"next start" does not work with "output: export" configuration` 오류를 낸다.
+그래서 `start` 스크립트를 두지 않고, 빌드 결과를 로컬에서 확인할 때 쓰는 `preview`를 대신 둔다.
 
 ---
 
@@ -104,6 +106,15 @@ npm run dev
 ```bash
 npm run build && ls out
 ```
+
+빌드 결과를 실제 정적 호스트처럼 띄워 보려면:
+
+```bash
+npm run preview
+```
+
+`npx serve@latest out`을 실행한다. `serve`를 의존성에 넣지 않은 것은 배포에 필요 없는
+로컬 확인용 도구이기 때문이다.
 
 ---
 
