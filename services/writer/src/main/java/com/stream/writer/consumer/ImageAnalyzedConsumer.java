@@ -3,6 +3,8 @@ package com.stream.writer.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stream.writer.command.CaptureCommandHandler;
 import com.stream.writer.command.CreateCaptureCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +12,8 @@ import java.util.Map;
 
 @Component
 public class ImageAnalyzedConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(ImageAnalyzedConsumer.class);
 
     private final CaptureCommandHandler captureCommandHandler;
     private final ObjectMapper objectMapper;
@@ -28,7 +32,7 @@ public class ImageAnalyzedConsumer {
     public void consume(String message) {
         try {
             Map<String, Object> data = objectMapper.readValue(message, Map.class);
-            System.out.println("[writer] 메시지 수신: " + data);
+            log.info("메시지 수신: {}", data);
 
             CreateCaptureCommand command = new CreateCaptureCommand(
                     Integer.valueOf(data.get("trailId").toString()),
@@ -41,7 +45,7 @@ public class ImageAnalyzedConsumer {
             captureCommandHandler.handle(command);
 
         } catch (Exception e) {
-            System.err.println("[writer] 처리 실패: " + e.getMessage());
+            log.error("처리 실패, 메시지를 건너뛴다", e);
         }
     }
 }

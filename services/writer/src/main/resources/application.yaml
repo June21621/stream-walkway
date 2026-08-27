@@ -14,7 +14,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none       # init-db.sql로 이미 테이블 생성했으므로 none
-    show-sql: true
 
   data:
     redis:

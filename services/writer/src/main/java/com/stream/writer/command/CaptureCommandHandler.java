@@ -5,11 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stream.shared.dto.CaptureView;
 import com.stream.shared.entity.Capture;
 import com.stream.writer.repository.CaptureRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class CaptureCommandHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(CaptureCommandHandler.class);
 
     private final CaptureRepository captureRepository;
     private final StringRedisTemplate redisTemplate;
@@ -37,15 +41,15 @@ public class CaptureCommandHandler {
         capture.setConfidence(command.confidence());
 
         Capture saved = captureRepository.save(capture);
-        System.out.println("[writer] PostgreSQL 저장 완료 id=" + saved.getId());
+        log.info("PostgreSQL 저장 완료 id={}", saved.getId());
 
         String redisKey = "capture:latest:trail:" + saved.getTrailId();
         try {
             String redisValue = objectMapper.writeValueAsString(CaptureView.from(saved));
             redisTemplate.opsForValue().set(redisKey, redisValue);
-            System.out.println("[writer] Redis 캐싱 완료 key=" + redisKey);
+            log.info("Redis 캐싱 완료 key={}", redisKey);
         } catch (JsonProcessingException e) {
-            System.err.println("[writer] Redis 캐싱 실패: " + e.getMessage());
+            log.warn("Redis 캐싱 실패 key={}", redisKey, e);
         }
 
         return saved;
