@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import json
 import time
@@ -14,6 +15,11 @@ from contextlib import asynccontextmanager
 # 대체하므로 lifespan 안에서 기록하면 테스트 경로에서 값이 생기지 않는다.
 # monotonic을 쓰는 이유는 시스템 시계가 조정돼도 뒤로 가지 않기 때문이다.
 _STARTED_AT = time.monotonic()
+
+# uvicorn이 루트 로거의 핸들러를 설정하므로 여기서는 로거만 가져온다.
+# 메시지 앞에 "[ml-service]" 접두사를 붙이지 않는다 — 로거 이름에 이미
+# 모듈 경로가 들어가고, 각 서비스는 별도 프로세스라 접두사가 중복 정보다.
+log = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────
@@ -33,7 +39,7 @@ async def consume():
     await consumer.start()
     await producer.start()
 
-    print("[ml-service] 구독 시작: image.downloaded")
+    log.info("구독 시작: image.downloaded")
 
     try:
         async for msg in consumer:
@@ -42,7 +48,7 @@ async def consume():
             # 잘못된 메시지 하나가 컨슈머 전체를 멈추게 두지 않는 것이 목적이다.
             try:
                 data = json.loads(msg.value)
-                print(f"[ml-service] 수신: {data}")
+                log.info("메시지 수신: %s", data)
 
                 # TODO: 실제 ML 분석 로직 자리 (현재는 고정값)
                 result = {
@@ -59,11 +65,14 @@ async def consume():
                     "image.analyzed",
                     value=json.dumps(result).encode(),
                 )
-                print(f"[ml-service] 발행 → image.analyzed: {result}")
-            except Exception as e:
+                log.info("발행 완료 topic=image.analyzed result=%s", result)
+            except Exception:
                 # 넓게 잡는다. JSON 파싱뿐 아니라 발행 실패도 같은 이유로
                 # 루프를 죽여서는 안 되고, 어느 쪽이든 이 메시지는 버린다.
-                print(f"[ml-service] 메시지 처리 실패, 건너뜀: {e}")
+                #
+                # log.exception은 스택트레이스를 함께 남긴다. 예외 메시지만
+                # 찍으면 브로커 장애로 발행이 계속 실패할 때 원인을 알 수 없다.
+                log.exception("메시지 처리 실패, 건너뜀")
     finally:
         await consumer.stop()
         await producer.stop()
