@@ -6,10 +6,16 @@
 **계획 문서:** `docs/superpowers/plans/2026-08-26-writer-geometry-validation.md`
 **설계 문서:** `docs/superpowers/specs/2026-08-26-writer-geometry-validation-design.md`
 
-이 문서는 Task 2 리포트(`.superpowers/sdd/task-2-report.md`)와 Task 3 리포트
-(`.superpowers/sdd/task-3-report.md`)에 실제로 기록된 테스트 실행 결과만 옮긴 것이다.
-이 문서를 쓰는 과정에서 테스트를 다시 돌리지 않았다. 두 리포트에 없는 수치는
-"확인 안 됨"으로 남긴다.
+**갱신:** 2026-08-27 — Docker 복구 후 PostGIS 실측 및 Testcontainers 테스트 실행. 5절 참고.
+
+이 문서의 1~4절과 6~8절은 Task 2 리포트(`.superpowers/sdd/task-2-report.md`)와 Task 3
+리포트(`.superpowers/sdd/task-3-report.md`)에 실제로 기록된 테스트 실행 결과만 옮긴 것이며,
+작성 당시 테스트를 다시 돌리지 않았다. 두 리포트에 없는 수치는 "확인 안 됨"으로 남겼다.
+
+**5절만 예외다.** 2026-08-27에 Docker를 복구해 직접 측정한 결과이며, 그 출처를 절 안에
+명시했다. 5절의 실측은 1절 표의 writer 수치도 갱신한다 — 당시 `Skipped: 5`였던
+`TrailCommandHandlerPostgresTest`가 전부 통과해 writer는 86개 중 85 통과 / skip 0이 됐다
+(늘어난 2개는 Task 3 이후 커밋 `9ba1c0c`가 추가한 검사 순서 테스트다).
 
 ## 1. 네 모듈의 최종 테스트 수치
 
@@ -105,13 +111,19 @@ Task 2 리포트는 실제 관찰된 SQL 예외까지 인용한다. 3D LineStrin
 
 ## 5. PostgreSQL/PostGIS 실측 여부
 
-**실측하지 않았다.** 두 리포트 모두 Docker 데몬이 이 작업 전 구간에서 내려가 있었다고 기록한다. `WriterApplicationTests`(Testcontainers 기반)는 매 실행에서 `Skipped: 5`로 표시됐고, 이는 Task 2/Task 3 리포트 모두 "기존 상태이며 회귀가 아니다"라고 명시한다. 이번 검증 문서를 쓰는 시점에도 Docker를 다시 띄워 확인하지 않았다.
+**2026-08-27 실측 완료.** 이 절은 원래 "실측하지 않았다"로 작성됐고, `POINT EMPTY`가 PostGIS에서는 저장될 가능성이 있다는 미확인 의심을 기록해 두었다. Docker를 복구해 실제로 확인한 결과 **그 의심이 사실로 확인됐다.** 아래는 실측 결과이며, 원래의 추론 서술은 이 절 끝에 남겨 둔다.
 
-측정하지 않았다는 사실과 별개로, 팀이 이를 받아들인 근거는 다음과 같다(측정이 아니라 논리적 근거임을 분명히 한다): `GeometryValidator.validateLocation()`은 `save()` 호출 이전, 즉 DB에 도달하기 전에 `IllegalArgumentException`을 던진다. 이 지점은 어떤 SQL 엔진을 쓰는지와 무관하다 — H2든 PostgreSQL/PostGIS든 검증에 걸린 요청은 애초에 DB 계층에 도달하지 않는다. 다만 이것은 코드 흐름을 근거로 한 추론이지, PostGIS로 직접 확인한 결과가 아니다. `GeometryColumnConstraintTest`가 실측한 컬럼 동작(3D/POINT EMPTY 거부, LINESTRING EMPTY 허용) 역시 H2 typmod 기준이며, PostGIS가 같은 typmod 의미론을 갖는다는 것은 조사 문서(`2026-08-25`)의 가정이지 실측이 아니다.
+측정 환경: `postgis/postgis:15-3.3-alpine` (compose와 같은 이미지), `PostGIS 3.3 USE_GEOS=1 USE_PROJ=1 USE_STATS=1`. 전체 입력별 결과는 조사 문서(`2026-08-25-writer-geometry-validation-findings.md`)의 "PostGIS 실측" 절에 표로 있다.
 
-**미확인 의심 사항 — `POINT EMPTY`가 가장 갈릴 가능성이 높은 지점이다.** PostGIS의 typmod 제약은 지오메트리 타입·SRID·Z/M 플래그를 검사하는데, `POINT EMPTY`는 이 세 조건을 전부 만족한다(타입은 POINT, SRID는 4326, Z/M 플래그는 없음). 따라서 PostGIS는 H2와 달리 `POINT EMPTY`를 22018 없이 그냥 **저장할 가능성이 있다** — H2의 22018은 typmod 거부가 아니라 H2 자체의 데이터 변환 처리 방식에서 온 것일 수 있기 때문이다. Z/M/ZM 거부는 typmod가 Z/M 플래그를 직접 검사하므로 PostGIS에서도 안전할 것으로 보이지만, `POINT EMPTY`는 그렇지 않다.
+**확인된 것 — Z/M/ZM은 두 엔진이 같다.** PostGIS는 `ERROR: Geometry has Z dimension but column does not` / `... has M dimension ...`으로 거부한다. typmod가 Z/M 플래그를 직접 검사한다는 것이 에러 메시지로 드러난다. 이 6가지 입력이 프로덕션에서도 500이었다는 조사 결론은 유효하고, 해당 수정은 진짜 버그 수정이다.
 
-이게 사실이라면, 조사 문서가 500으로 기록한 7가지 입력 중 Trail `POINT EMPTY` 1건은 H2에서만 500이었던 것이 되고, 이번 브랜치의 Trail EMPTY 거부는 "버그 수정"이 아니라 프로덕션(PostGIS)에서는 지금까지 성공하던 요청을 처음으로 400으로 막는 **정책 변경**이 된다. 다만 이는 코드로 확인한 것이 아니라 typmod 의미론에 대한 추론일 뿐이며, Docker가 복구되어 실제 PostGIS로 `POINT EMPTY`를 넣어보기 전까지는 미확인 의심으로만 남겨둔다(후속 작업 1번 참고).
+**정정된 것 — `POINT EMPTY`는 PostGIS가 저장한다(`INSERT 0 1`).** H2의 22018은 typmod 거부가 아니라 H2 자체의 변환 처리에서 온 것이었다. 따라서 조사 문서가 500으로 기록한 7가지 중 Trail `POINT EMPTY` 1건은 **H2에서만 500**이었고, 프로덕션 기준 500 입력은 6가지다.
+
+그 결과 이번 브랜치의 Trail EMPTY 거부는 버그 수정이 아니라 **정책 변경**이다 — 프로덕션에서 지금까지 201로 성공하던 요청을 처음으로 400으로 막는다. 다만 `LINESTRING EMPTY` 거부는 애초부터 정책 변경으로 인지되어 있었으므로, 실측 결과 Trail/Stream EMPTY가 **둘 다 같은 성격**이 되어 설계 의도(두 엔드포인트 대칭)와는 오히려 일관된다. 릴리스 노트에는 버그 수정이 아니라 동작 변경으로 적어야 한다.
+
+**Testcontainers 테스트도 함께 해소됐다.** `TrailCommandHandlerPostgresTest` 5개가 이 작업 전 구간에서 `Skipped`였는데, Docker 복구 후 실행해 **5개 전부 통과**했다. 제약 이름(`trails_stream_id_fkey`, `trails_stream_id_camera_number_key`)과 예외 매핑이 하드코딩된 추정대로 맞았다. writer 전체는 86개 중 85 통과 / skip 0이며, 남은 1개는 `WriterApplicationTests.contextLoads`(테스트 프로파일에 JDBC URL 없음)로 이 브랜치와 무관한 기존 항목이다.
+
+**여전히 유효한 논리적 근거(원래 서술).** `GeometryValidator.validateLocation()`은 `save()` 호출 이전, 즉 DB에 도달하기 전에 `IllegalArgumentException`을 던진다. 이 지점은 어떤 SQL 엔진을 쓰는지와 무관하다 — 검증에 걸린 요청은 애초에 DB 계층에 도달하지 않는다. 실측은 이 흐름 자체를 바꾸지 않고, "검증이 없었다면 각 엔진이 어떻게 반응했을까"에 대한 답만 확정했다.
 
 ## 6. 계획과 리포트 사이에서 발견한 사소한 불일치
 

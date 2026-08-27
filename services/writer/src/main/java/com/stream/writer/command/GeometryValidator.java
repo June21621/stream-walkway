@@ -11,9 +11,11 @@ import org.locationtech.jts.geom.Geometry;
 // 이 typmod는 2D 지오메트리만 받는다. 그런데 JTS의 WKTReader는 Z/M/ZM 좌표를 아무 불평 없이
 // 파싱하고 (Point)/(LineString) 캐스트도 타입이 맞아 통과하므로, 검사가 없으면 save()까지
 // 도달해 (H2 기준) DataIntegrityViolationException(SQLState 22018) → 500이 된다.
-// ⚠️ 이 22018/500 관찰은 전부 H2에서 실측한 것이다. Docker가 내려가 있어 이 브랜치는
-// PostgreSQL/PostGIS를 한 번도 실측하지 못했다. Z/M/ZM 거부는 PostGIS typmod도 같은
-// 의미론일 것으로 보이지만, 이것도 POINT EMPTY와 마찬가지로 실측이 아니라 추론이다.
+// 2026-08-27에 PostGIS 3.3으로 실측했다(조사 문서 "PostGIS 실측" 절).
+// Z/M/ZM은 PostGIS도 거부한다 — "Geometry has Z dimension but column does not".
+// 다만 POINT EMPTY는 PostGIS가 그대로 저장한다. typmod가 검사하는 세 조건(타입/SRID/
+// Z·M 플래그)을 전부 만족하기 때문이다. 즉 위의 22018/500은 POINT EMPTY에 한해 H2에서만
+// 나는 현상이고, 아래 빈 지오메트리 거부는 프로덕션 기준으로는 버그 수정이 아니라 정책이다.
 //
 // ⚠️ 차원 판별에 CoordinateSequence.getDimension()을 쓰면 안 된다. JTS 1.19.0에서 실측한
 // 결과 순수 2D인 "POINT(126.97 37.55)"에도 3을 반환한다 — CoordinateArraySequence가 기본
@@ -21,9 +23,10 @@ import org.locationtech.jts.geom.Geometry;
 // NaN 검사는 2D / Z / M / ZM / 옛 JTS 3좌표 문법을 정확히 구분한다(실측 확인).
 //
 // 빈 지오메트리 검사가 먼저인 이유: 빈 지오메트리에는 볼 좌표가 없어 차원 판단의 근거가 없다.
-// 참고로 GEOMETRY(POINT,4326)은 POINT EMPTY를 거부하지만 GEOMETRY(LINESTRING,4326)은
-// LINESTRING EMPTY를 받아준다(실측). 둘 다 거부하는 것은 DB 제약이 아니라 정책 결정이다 —
-// 좌표 없는 하천/카메라 위치는 도메인상 의미가 없고, 두 엔드포인트가 같게 동작해야 한다.
+// 빈 지오메트리를 거부하는 것은 DB 제약이 아니라 정책 결정이다 — 좌표 없는 하천/카메라
+// 위치는 도메인상 의미가 없고, 두 엔드포인트가 같게 동작해야 한다. PostGIS는 POINT EMPTY와
+// LINESTRING EMPTY를 둘 다 받아주므로(실측) 양쪽 모두 이 정책이 적용된다. H2만 POINT EMPTY를
+// 거부하는데, 그 비대칭이 조사 단계에서 이 검사를 버그 수정으로 오인하게 만든 원인이었다.
 // ─────────────────────────────────────────
 final class GeometryValidator {
 

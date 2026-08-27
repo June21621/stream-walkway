@@ -31,6 +31,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // 이걸 거부하는 것은 DB 제약이 아니라 정책이다. 나중에 "왜 막았지?"라는
 // 질문이 나왔을 때 답이 여기 있다.
 //
+// ⚠️ 이 클래스가 기록하는 것은 H2 동작이다. 2026-08-27 PostGIS 3.3 실측 결과
+// POINT EMPTY는 PostGIS가 그대로 저장한다 — 아래 emptyPointIsRejectedByTheColumn이
+// 잡아내는 거부는 H2에만 있는 것이고, typmod 거부가 아니라 H2의 변환 처리에서 온다.
+// 따라서 POINT EMPTY 거부도 LINESTRING EMPTY와 마찬가지로 정책이다.
+// 상세는 docs/superpowers/specs/2026-08-25-writer-geometry-validation-findings.md 참고.
+//
 // ⚠️ H2의 에러 문자열은 단언하지 않는다. 예외 타입만 본다
 // (TrailCommandHandlerConstraintTest와 같은 이유).
 //

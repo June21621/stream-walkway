@@ -3,6 +3,7 @@
 **작성일:** 2026-08-26
 **브랜치:** `fix/writer-geometry-validation`
 **조사 문서:** `docs/superpowers/specs/2026-08-25-writer-geometry-validation-findings.md`
+**갱신:** 2026-08-27 — PostGIS 실측으로 EMPTY 관련 전제 정정 (아래 "테스트" 절 끝 참고).
 
 ## 목표
 
@@ -11,6 +12,9 @@ WKT의 Z/M/ZM 좌표와 빈 지오메트리가 DB까지 도달해 500이 나가�
 
 조사에서 확정된 500 입력 7가지가 대상이다 — Z/M/ZM이 Stream/Trail 양쪽(6가지),
 그리고 Trail의 `POINT EMPTY`(1가지).
+
+> **2026-08-27 정정:** PostGIS 실측 결과 `POINT EMPTY`는 H2에서만 500이었다. 프로덕션 기준
+> 500 입력은 6가지이고, EMPTY 거부는 버그 수정이 아니라 정책 변경이다.
 
 ## 결정 사항
 
@@ -35,6 +39,10 @@ WKT의 Z/M/ZM 좌표와 빈 지오메트리가 DB까지 도달해 500이 나가�
 
 이건 Stream 쪽 동작 변경(201 → 400)이다. 다만 `LINESTRING EMPTY`가 성공하기를 기대하는
 기존 테스트는 없다 — 저장소 전체 grep으로 확인했다.
+
+> **2026-08-27 정정:** 위 비대칭은 H2에서만 나타난다. PostGIS는 `POINT EMPTY`도 저장하므로
+> 프로덕션에는 비대칭이 없었고, 이 결정은 Trail·Stream **양쪽 모두** 201 → 400 동작 변경이다.
+> 결론(둘 다 거부)은 그대로 유지하되 성격이 버그 수정이 아니라 정책 변경으로 바뀐다.
 
 ### 3. 좌표 범위 검사 — 포함하되 별도 커밋
 
@@ -123,15 +131,23 @@ TDD로 RED를 먼저 만든다.
 - **범위 커밋**: `POINT(999 999)`와 `LINESTRING(999 999, 1000 1000)` 거부, 경계값
   `(180 90)`과 `(-180 -90)` 통과.
 
-Docker 데몬이 내려가 있어 Postgres Testcontainers 테스트는 Skipped로 남는다. 회귀가 아니며
-검증은 H2 기준이다. PostGIS 실측은 하지 않는다 — 검증이 DB에 도달하기 전에 거부하므로,
-거부된다는 결과 자체는 엔진과 무관하게 같다.
+설계 시점에는 Docker 데몬이 내려가 있어 Postgres Testcontainers 테스트가 Skipped로 남았고
+검증은 H2 기준이었다. **2026-08-27에 Docker를 복구해 실측했고, 이 절의 원래 가정 하나가
+틀린 것으로 확인됐다.**
 
-다만 여기서 더 나아간 주장은 하지 않는다. **"검증이 없었다면 PostGIS에서도 500이 났을
-것"은 추론이지 실측이 아니다.** 조사 문서의 500 관찰(SQLState 22018)은 전부 H2에서 나온
-것이고, 이 브랜치는 PostgreSQL/PostGIS를 한 번도 실측하지 못했다. `GEOMETRY(POINT,4326)`
-typmod가 양쪽 엔진에서 같은 의미론일 것으로 보이지만 확인되지 않았다. 같은 단서를
-`GeometryValidator`의 주석에도 남겨 두었다.
+- Testcontainers 테스트 5개는 전부 통과했다(제약 이름과 예외 매핑이 추정대로 맞음).
+- **Z/M/ZM은 PostGIS도 거부한다** — `Geometry has Z dimension but column does not`. 이 부분은
+  두 엔진이 같고, 해당 수정은 진짜 버그 수정이다.
+- **`POINT EMPTY`는 PostGIS가 저장한다.** typmod가 검사하는 세 조건(타입/SRID/Z·M 플래그)을
+  전부 만족하기 때문이다. H2의 22018은 typmod 거부가 아니라 H2 자체의 변환 처리였다.
+
+따라서 위 "결정 사항 2"의 EMPTY 거부는 프로덕션 기준으로 **Trail도 Stream과 마찬가지로
+정책 변경**이다. 설계 당시에는 Trail만 500 → 400 수정이고 Stream만 201 → 400 변경이라고
+봤는데, 실측 결과 양쪽 다 201 → 400 변경이다. 정책 자체(두 엔드포인트 대칭)는 그대로
+유효하고 오히려 더 일관되지만, 릴리스 노트에는 버그 수정이 아니라 동작 변경으로 적어야 한다.
+
+실측 표는 조사 문서(`2026-08-25-writer-geometry-validation-findings.md`)의 "PostGIS 실측"
+절에, 경위는 검증 문서(`2026-08-26-writer-geometry-validation-verification.md`) 5절에 있다.
 
 ## 범위 밖
 

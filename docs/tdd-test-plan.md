@@ -2,7 +2,7 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-08-27 — 전체 테스트 스위트를 실제로 실행해 GREEN/RED 수치를 실측값으로 교체. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
+> 최종 갱신: 2026-08-27 — 전체 테스트 스위트를 실제로 실행해 GREEN/RED 수치를 실측값으로 교체. 같은 날 Docker를 띄워 writer의 SKIP 5개까지 해소했다. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
 
 ---
 
@@ -16,12 +16,12 @@
 | youtube-service | `npm test` (`jest --testPathPattern=tests/`) | jest JSON 리포터 |
 | ml-service | `python -m pytest tests -q` | pytest 요약 |
 
-**측정 당시 환경 제약** — 아래 두 항목은 코드 결함이 아니라 실행 환경 때문에 실패/스킵된 것입니다.
+**환경 의존 항목** — 아래 두 항목은 코드 결함이 아니라 실행 환경에 따라 갈립니다.
 
-- **Docker 미실행**: `TrailCommandHandlerPostgresTest` 5개가 `Docker is not available`로 스킵됨 (Testcontainers 기반 실 PostgreSQL 테스트)
-- **DB 미기동**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없음. 인프라를 띄우면 통과할 가능성이 높으나 그 상태로는 **미검증**임
+- **Docker (해소됨)**: 1차 측정에서 `TrailCommandHandlerPostgresTest` 5개가 `Docker is not available`로 스킵됐습니다. 같은 날 Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했습니다(실 PostgreSQL 제약 이름과 예외 매핑이 하드코딩된 추정대로 맞음). 아래 표는 재실행 후 수치입니다.
+- **DB 미기동 (미해소)**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패합니다. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없습니다. Docker를 띄운 상태에서도 동일하게 실패하므로 **Docker 유무와 무관한 테스트 설정 문제**입니다.
 
-즉 아래 표의 RED 중 backend 5 / youtube 11 / ml 13 = **29개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 환경 의존 실패입니다.
+즉 아래 표의 RED 중 backend 5 / youtube 11 / ml 13 = **29개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 테스트 설정 문제입니다.
 
 ---
 
@@ -147,7 +147,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../command/StreamCommandHandlerConstraintTest.java` | 제약조건 검증 | 2 | 2 | 0 | 0 |
 | `src/test/.../command/TrailCommandHandlerTest.java` | Mockito + H2 | 17 | 17 | 0 | 0 |
 | `src/test/.../command/TrailCommandHandlerConstraintTest.java` | 제약조건 검증 | 8 | 8 | 0 | 0 |
-| `src/test/.../command/TrailCommandHandlerPostgresTest.java` | Testcontainers + 실 PostgreSQL | 5 | 0 | 0 | **5** (Docker 없음) |
+| `src/test/.../command/TrailCommandHandlerPostgresTest.java` | Testcontainers + 실 PostgreSQL | 5 | 5 | 0 | 0 |
 | `src/test/.../command/CaptureCommandHandlerTest.java` | Mockito 단위 테스트 | 4 | 4 | 0 | 0 |
 | `src/test/.../command/GeometryValidatorTest.java` | 순수 단위 테스트 | 8 | 8 | 0 | 0 |
 | `src/test/.../command/GeometryColumnConstraintTest.java` | 제약조건 검증 | 5 | 5 | 0 | 0 |
@@ -155,7 +155,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 | 8 | 8 | 0 | 0 |
-| **합계** | | **86** | **80** | **1** | **5** |
+| **합계** | | **86** | **85** | **1** | **0** |
 
 ---
 
@@ -183,9 +183,9 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | youtube-service | 22 | 11 | 11 | 0 |
 | ml-service | 28 | 15 | 13 | 0 |
 | reader | 33 | 32 | 1 | 0 |
-| writer | 86 | 80 | 1 | 5 |
+| writer | 86 | 85 | 1 | 0 |
 | shared | 30 | 30 | 0 | 0 |
-| **합계** | **235** | **199** | **31** | **5** |
+| **합계** | **235** | **204** | **31** | **0** |
 
 > **이전 갱신(2026-08-16) 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다. 이번 표는 저장소의 모든 테스트를 실행해 집계한 값이다.
 
@@ -233,9 +233,19 @@ Stream·Trail 관련 RED는 전부 GREEN으로 전환되어 표에서 제거되�
 | `ReaderApplicationTests.contextLoads` | `@SpringBootTest`가 실 DataSource를 요구하나 테스트 프로파일에 JDBC URL 없음 | 테스트용 DataSource 설정을 주거나, 인프라 기동 후 재측정 |
 | `WriterApplicationTests.contextLoads` | 동일 | 동일 |
 
-### writer — 5개 SKIP (환경 의존)
+### writer — SKIP 5개 해소됨 (2026-08-27)
 
-`TrailCommandHandlerPostgresTest`가 Testcontainers로 실 PostgreSQL을 띄우는데 Docker가 실행 중이 아니라 스킵되었다. 실 PostgreSQL의 제약조건 이름과 유니크/FK 위반 예외 매핑을 검증하는 테스트이므로 **Docker를 띄우고 재측정하기 전까지 이 5개는 미검증 상태**다.
+`TrailCommandHandlerPostgresTest`는 Testcontainers로 실 PostgreSQL을 띄우는데, 1차 측정 시 Docker가 실행 중이 아니라 스킵됐다. Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했다.
+
+```
+PASS realPostgresForeignKeyViolationBecomesIllegalArgumentException
+PASS productionSchemaHasExpectedConstraintNames
+PASS postgresUniqueErrorMessageActuallyContainsLowercaseConstraintName
+PASS realPostgresUniqueViolationBecomesDuplicateTrailException
+PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
+```
+
+제약 이름(`trails_stream_id_fkey`, `trails_stream_id_camera_number_key`)과 위반 시 예외 매핑이 하드코딩된 추정대로 맞았다. 같은 기회에 PostGIS 지오메트리 동작도 실측했고, `POINT EMPTY`에 대한 H2/PostGIS 차이를 발견해 관련 문서를 정정했다 — `docs/superpowers/specs/2026-08-25-writer-geometry-validation-findings.md`의 "PostGIS 실측" 절 참고.
 
 ---
 
@@ -257,9 +267,9 @@ Stream·Trail 관련 RED는 전부 GREEN으로 전환되어 표에서 제거되�
    - backend CaptureServiceImpl 구현
    - backend CaptureController에서 서비스 호출하도록 구현
 
-4. 환경 의존 항목 재측정 (구현이 아니라 검증)
-   - Docker 기동 후 TrailCommandHandlerPostgresTest 5개 실행
-   - 테스트용 DataSource 설정 후 reader/writer contextLoads 2개 확인
+4. 환경 의존 항목 (구현이 아니라 검증)
+   - Docker 기동 후 TrailCommandHandlerPostgresTest 5개 실행 — 완료 (2026-08-27, 전부 통과)
+   - 테스트용 DataSource 설정 후 reader/writer contextLoads 2개 확인 — 미해소
 ```
 
 ### 완료된 항목
