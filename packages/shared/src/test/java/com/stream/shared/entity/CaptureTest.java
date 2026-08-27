@@ -104,6 +104,23 @@ class CaptureTest {
     }
 
     @Test
+    @DisplayName("@PrePersist - onCreate() 호출 시 updatedAt이 createdAt과 같은 값으로 설정된다")
+    void onCreate_setsUpdatedAtEqualToCreatedAt() throws Exception {
+        Method onCreateMethod = Capture.class.getDeclaredMethod("onCreate");
+        onCreateMethod.setAccessible(true);
+        onCreateMethod.invoke(capture);
+
+        assertThat(capture.getUpdatedAt()).isNotNull();
+        assertThat(capture.getUpdatedAt()).isEqualTo(capture.getCreatedAt());
+    }
+
+    @Test
+    @DisplayName("getUpdatedAt() - onCreate() 호출 전에는 updatedAt이 null이다")
+    void getUpdatedAt_isNullBeforeOnCreate() {
+        assertThat(capture.getUpdatedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("기본 생성자로 만들면 모든 필드가 null이다")
     void defaultConstructor_allFieldsAreNull() {
         Capture empty = new Capture();
@@ -114,5 +131,6 @@ class CaptureTest {
         assertThat(empty.getRoadStatus()).isNull();
         assertThat(empty.getConfidence()).isNull();
         assertThat(empty.getCreatedAt()).isNull();
+        assertThat(empty.getUpdatedAt()).isNull();
     }
 }
