@@ -2,7 +2,7 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-08-27 — Capture 조회 경로 구현 완료로 backend RED가 0이 되었다. 같은 날 전체 스위트 실측 교체와 Docker SKIP 5개 해소도 함께 했다. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
+> 최종 갱신: 2026-08-27 — ml-service RED 13개 해소로 ml-service도 RED가 0이 되었다. 같은 날 Capture 조회 경로 완료로 backend RED가 0이 되었다. 같은 날 전체 스위트 실측 교체와 Docker SKIP 5개 해소도 함께 했다. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
 
 ---
 
@@ -21,7 +21,7 @@
 - **Docker (해소됨)**: 1차 측정에서 `TrailCommandHandlerPostgresTest` 5개가 `Docker is not available`로 스킵됐습니다. 같은 날 Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했습니다(실 PostgreSQL 제약 이름과 예외 매핑이 하드코딩된 추정대로 맞음). 아래 표는 재실행 후 수치입니다.
 - **DB 미기동 (미해소)**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패합니다. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없습니다. Docker를 띄운 상태에서도 동일하게 실패하므로 **Docker 유무와 무관한 테스트 설정 문제**입니다.
 
-즉 아래 표의 RED 중 youtube 11 / ml 13 = **24개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 테스트 설정 문제입니다.
+즉 아래 표의 RED 13개 중 **youtube 11개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 테스트 설정 문제입니다.
 
 ---
 
@@ -33,9 +33,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 - **의도**: 테스트 코드만 작성
 - **실제**: 테스트 코드 + 소스 코드 스텁 (컴파일 가능한 최소 구조) 동시 생성
 
-2026-08-27 기준으로 스텁 중 상당수는 실제 구현으로 대체되었다. **아직 `throw new Error('Not implemented')`를 던지는 채로 남아 있는 것은 다음 한 곳뿐이다.**
-
-- `apps/youtube-service` — `src/app.js`의 `POST /download`, `GET /status/:jobId`
+2026-08-27 기준으로 스텁 중 상당수는 실제 구현으로 대체되었다. **아직 `throw new Error('Not implemented')`를 던지는 채로 남아 있는 것은 `apps/youtube-service`의 `src/app.js` 한 곳뿐이다** — `POST /download`, `GET /status/:jobId`.
 
 ---
 
@@ -101,17 +99,17 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 | 파일 | 종류 | 현재 상태 |
 |------|------|---------|
-| `main.py` — `GET /health` | 엔드포인트 | 동작하나 명세와 응답 형식 불일치 (`{"status":"ok","service":"ml-service"}` 반환) |
-| `main.py` — `POST /analyze` | 엔드포인트 | **미존재** (호출 시 404) |
-| `main.py` — `consume()` | Kafka 소비/발행 | 파이프라인은 동작하나 분석 결과가 고정값 (`roadStatus: "양호"`, `confidence: 0.95`). 메시지 루프에 예외 처리 없음 |
+| `main.py` — `GET /health` | 엔드포인트 | 구현 완료. `{status, model, uptime_sec}` 반환. **`model: "loaded"`는 명세가 요구하는 고정 문자열이며 실제 모델 적재 상태가 아니다** |
+| `main.py` — `POST /analyze` | 엔드포인트 | 구현 완료. 202 + `{jobId, status, image_path}`. 접수만 하고 실제 분석 경로에 일을 넣지 않는다(의도된 결정, 계획 문서 참고) |
+| `main.py` — `consume()` | Kafka 소비/발행 | 메시지별 `try/except` 추가로 잘못된 메시지가 루프를 죽이지 않는다. **분석 결과는 여전히 고정값** (`roadStatus: "양호"`, `confidence: 0.95`) — 실제 ML 모델은 미적재 |
 
 #### 테스트 코드
 
 | 파일 | 방식 | 전체 | GREEN | RED |
 |------|------|-----|-------|-----|
-| `tests/test_main.py` | pytest + FastAPI TestClient | 12 | 1 | **11** |
-| `tests/test_consume.py` | pytest + AsyncMock | 16 | 14 | **2** |
-| **합계** | | **28** | **15** | **13** |
+| `tests/test_main.py` | pytest + FastAPI TestClient | 12 | 12 | 0 |
+| `tests/test_consume.py` | pytest + AsyncMock | 16 | 16 | 0 |
+| **합계** | | **28** | **28** | **0** |
 
 ---
 
@@ -181,11 +179,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 |--------|-------------|-------|-----|------|
 | backend | 42 | 42 | 0 | 0 |
 | youtube-service | 22 | 11 | 11 | 0 |
-| ml-service | 28 | 15 | 13 | 0 |
+| ml-service | 28 | 28 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
 | writer | 86 | 85 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **251** | **225** | **26** | **0** |
+| **합계** | **251** | **238** | **13** | **0** |
 
 > **이전 갱신(2026-08-16) 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다. 이번 표는 저장소의 모든 테스트를 실행해 집계한 값이다.
 
@@ -202,14 +200,6 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `/download` → Kafka 발행 (kafka.test.js 2개) | 다운로드 완료 시 `publishMessage('image.downloaded', {...})` 호출 |
 
 > 별개 이슈: `src/index.js`가 `src/app.js`를 import하지 않고 Express 앱을 따로 정의하고 있다. `/download`를 구현할 때 두 파일을 하나로 합쳐야 실제 서버에 반영된다.
-
-### ML Service — 13개 RED
-
-| 대상 | 필요한 구현 |
-|------|-----------|
-| `GET /health` (3개) | 응답을 `{"status": "healthy", "model": "loaded", "uptime_sec": N}` 형식으로 변경 |
-| `POST /analyze` (8개) | 엔드포인트 신설. Pydantic 요청 모델 정의, 고유 jobId 생성, `status: "queued"` 및 `image_path` 포함해 202 반환, 필수 필드 누락 시 422 |
-| `consume()` 예외 처리 (2개) | `async for msg in consumer` 내부에 `try/except` 추가하여 JSON 파싱 에러를 무시하고 다음 메시지를 계속 처리 |
 
 ### reader / writer — 각 1개 RED (환경 의존)
 
@@ -237,10 +227,10 @@ PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
 ## 다음 단계 (GREEN 전환 순서 권장)
 
 ```
-1. ML Service — 13개 RED (파일 1개만 수정, 비용 대비 회수 최대)
-   - GET /health 응답 형식 수정
-   - POST /analyze 엔드포인트 추가 (Pydantic 모델 + jobId 생성)
-   - consume() 내부 try/except 추가
+1. ML Service — 완료 (2026-08-27)
+   - GET /health 응답 형식 수정 — 완료
+   - POST /analyze 엔드포인트 추가 — 완료
+   - consume() 내부 try/except 추가 — 완료
 
 2. YouTube Service — 11개 RED
    - app.js의 POST /download 구현 (jobStore + Kafka 발행)
@@ -264,4 +254,5 @@ PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
 - `TrailService` 구현체 — 완료 (설계: `docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`)
 - writer 지오메트리 검증 (길이 / Z·M 좌표 / 빈 지오메트리 / SRID 4326 범위) — 완료 (`docs/superpowers/specs/2026-08-26-writer-geometry-validation-design.md`)
 - `packages/shared` 엔티티·DTO 분리 — 완료
+- ml-service RED 13개 해소 — 완료 (계획: `docs/superpowers/plans/2026-08-27-ml-service-red-green.md`). **실제 ML 모델은 여전히 없다** — `consume()`이 고정값을 내고 이미지 파일을 열지도 않는다. 저장 위치가 정해지지 않아 분석할 파일에 접근할 방법 자체가 없다(youtube-service 작업에서 결정)
 - Capture 조회 경로 (`GET /api/captures`, `GET /api/captures/{id}`) — 완료 (계획: `docs/superpowers/plans/2026-08-27-capture-read-path.md`). 파이프라인의 출구가 열렸다. 함께 고친 것: `shared`에 `updatedAt` 누락, backend `CaptureController`의 `@RequestParam` 이름 누락(`?stream_id=`와 바인딩 안 됨)
