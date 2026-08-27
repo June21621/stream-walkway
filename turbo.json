@@ -6,7 +6,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**", "build/**", "target/**"]
+      "outputs": [".next/**", "out/**", "dist/**", "build/**", "target/**"]
     },
     "test": {}
   }

@@ -19,7 +19,7 @@ MSA 기반 하천 산책로 정보 분석 시스템
 ```
 stream-walkway/
 ├── apps/                      # 주요 애플리케이션
-│   ├── frontend/             # React 기반 웹 프론트엔드
+│   ├── frontend/             # Next.js 정적 사이트 (out/ 을 CDN에 배포, 런타임 서버 없음)
 │   ├── backend/              # Spring Boot API Gateway 및 오케스트레이션
 │   ├── youtube-service/      # Node.js 이미지 다운로더
 │   └── ml-service/           # Python/Node.js ML 분석 서비스
@@ -42,8 +42,11 @@ stream-walkway/
 ## 기술 스택
 
 ### Frontend
+- Next.js (App Router, 정적 export)
 - React
 - TypeScript
+
+프론트엔드는 `next build`로 `out/` 을 생성해 CDN에 올리는 정적 사이트입니다. Node 런타임 서버가 없으므로 `docker-compose`에도 포함되지 않습니다. 자세한 배포 모델과 라우팅 규약은 [apps/frontend/README.md](./apps/frontend/README.md)를 참고하세요.
 
 ### Backend
 - Spring Boot (API Gateway, Writer, Reader)
