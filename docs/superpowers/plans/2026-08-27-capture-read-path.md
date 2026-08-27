@@ -777,9 +777,9 @@ Run: `./services/writer/mvnw -o clean test -fae`
 - 요약표와 "RED 테스트 상세"의 "Backend — 5개 RED" 절 삭제
 - "배경 및 주의사항"의 "아직 스텁으로 남아 있는 것" 목록에서 backend 항목 삭제 (youtube-service만 남는다)
 
-- [ ] **Step 3: Postman 컬렉션에 응답 예시를 맞춘다**
+- [ ] **Step 3: Postman 컬렉션을 확인한다 — 수정 불필요로 확인됨**
 
-"Backend Gateway :8080 / Captures" 폴더의 두 요청에 실제 응답 형태를 반영한다. 특히 `updated_at` 필드가 응답에 포함된다는 점과, `GET /api/captures/{id}`의 404 본문(`{"error": "Capture not found", "id": N}`)을 예시로 넣는다.
+실제로 열어보니 "Backend Gateway :8080 / Captures" 폴더의 두 요청이 이미 `updated_at`을 포함한 200 예시와 `{"error": "Capture not found", "id": 1}` 404 예시를 갖고 있었다. 명세가 먼저 있었고 구현이 이번에 따라잡은 것이므로 고칠 것이 없다. 다른 작업에서 이 절을 참고할 때는 **먼저 열어보고** 실제로 어긋난 것만 고칠 것.
 
 - [ ] **Step 4: 커밋**
 

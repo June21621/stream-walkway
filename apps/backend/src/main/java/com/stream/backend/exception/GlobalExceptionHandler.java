@@ -34,6 +34,12 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Trail not found", "id", e.getId()));
     }
 
+    @ExceptionHandler(CaptureNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCaptureNotFound(CaptureNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Capture not found", "id", e.getId()));
+    }
+
     @ExceptionHandler(InvalidTrailGeometryException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidTrailGeometry(InvalidTrailGeometryException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
