@@ -16,6 +16,7 @@
   - Phase 1 `feature/capture-reader` (Task 1~3) — `packages/shared` + `services/reader`
   - Phase 2 `feature/capture-gateway` (Task 4~6) — `apps/backend`. **Phase 1이 main에 머지된 뒤 시작한다**
 - 테스트는 항상 `clean` 포함으로 돌린다: `./services/writer/mvnw -o clean test -fae` (삭제된 소스의 `.class`가 `target/`에 남아 개수가 부풀려진 전례가 있다)
+- **모듈 단독 실행에는 반드시 `-am`을 붙인다.** `-pl services/reader`만 쓰면 `shared`를 로컬 Maven 저장소의 설치본에서 가져오는데, 이 계획은 Task 1에서 `shared`를 수정하므로 옛 버전이 잡혀 `NoSuchFieldException: updatedAt`으로 죽는다(Task 2 실행 중 실제로 겪었다). `-am`은 의존 모듈을 같은 리액터에서 함께 빌드한다. `-Dtest=`와 함께 쓰면 다른 모듈에 해당 테스트가 없어 실패하므로 `-Dsurefire.failIfNoSpecifiedTests=false`도 같이 붙인다
 - 기준선(2026-08-27 실측): shared 30/30, reader 32/33, writer 85/86, backend 31/36. **reader/writer의 실패 1개씩은 `ApplicationTests.contextLoads`로 이 작업과 무관하다.** 이 숫자가 늘어나면 회귀다
 - 커밋 메시지는 한글로, 무엇을/왜 했는지 포함
 - Docker는 Phase 1 Task 1에서 한 번 필요하다(Testcontainers). 없으면 해당 테스트가 스킵된다
@@ -256,7 +257,7 @@ reader의 다른 단건 조회(`StreamController.getById`, `TrailController.getB
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl services/reader -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl services/reader -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 신규 2개 FAIL. `getById_returns200WhenFound`는 `Status expected:<200> but was:<404>` (매핑이 없어 Spring이 404를 낸다), `getById_returns404WhenNotFound`는 우연히 PASS할 수 있다 — 매핑이 없어도 404가 나오기 때문이다. **그래서 200 테스트가 이 태스크의 진짜 RED다.**
 
@@ -282,7 +283,7 @@ Expected: 신규 2개 FAIL. `getById_returns200WhenFound`는 `Status expected:<2
 
 - [ ] **Step 4: 통과를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl services/reader -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl services/reader -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 11개 통과 (기존 9 + 신규 2), 실패 0
 
@@ -364,7 +365,7 @@ StreamController/TrailController의 getById와 같은 형태로,
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl services/reader -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl services/reader -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 컴파일 실패. `cannot find symbol: method findFiltered(...)`.
 
@@ -428,7 +429,7 @@ import 추가: `org.springframework.data.domain.PageRequest`, `Pageable`, `Sort`
 
 - [ ] **Step 5: 통과를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl services/reader -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl services/reader -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 14개 통과 (기존 9 + Task 2의 2 + 신규 3), 실패 0
 
@@ -542,7 +543,7 @@ RestClient 호출 자체는 `TrailServiceImplTest`가 쓰는 mock 방식이 있�
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl apps/backend -Dtest=CaptureServiceImplTest`
+Run: `./services/writer/mvnw -o clean test -pl apps/backend -am -Dtest=CaptureServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 컴파일 실패. `toModel`이 없고 `CaptureServiceImpl`이 스텁이다.
 
@@ -615,7 +616,7 @@ public class CaptureServiceImpl implements CaptureService {
 
 - [ ] **Step 4: 통과를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl apps/backend -Dtest=CaptureServiceImplTest`
+Run: `./services/writer/mvnw -o clean test -pl apps/backend -am -Dtest=CaptureServiceImplTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 2개 통과
 
@@ -656,7 +657,7 @@ CaptureView의 trailId/streamId는 Integer이고 backend 모델은 Long이라
 
 - [ ] **Step 1: 기존 RED 5개의 실패를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl apps/backend -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl apps/backend -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 5개 전부 FAIL, 전부 `UnsupportedOperationException: Not implemented`
 
@@ -722,7 +723,7 @@ import 추가: `com.stream.backend.exception.CaptureNotFoundException`.
 
 - [ ] **Step 5: 통과를 확인한다**
 
-Run: `./services/writer/mvnw -o clean test -pl apps/backend -Dtest=CaptureControllerTest`
+Run: `./services/writer/mvnw -o clean test -pl apps/backend -am -Dtest=CaptureControllerTest -Dsurefire.failIfNoSpecifiedTests=false`
 
 Expected: 5개 전부 PASS
 
