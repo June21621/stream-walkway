@@ -2,8 +2,10 @@ import asyncio
 import os
 import json
 import time
+import uuid
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from fastapi import FastAPI
+from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
 
@@ -66,6 +68,32 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+class AnalyzeRequest(BaseModel):
+    # 세 필드 모두 기본값이 없다 = 필수. 누락되면 FastAPI가 422를 낸다.
+    # 요청 필드는 snake_case, 응답의 jobId는 camelCase다 — API 명세가
+    # 그렇게 정의돼 있어 그대로 따른다.
+    stream_id: int
+    trail_id: int
+    image_path: str
+
+
+# ─────────────────────────────────────────
+# POST /analyze — 분석 요청 접수
+# ─────────────────────────────────────────
+@app.post("/analyze", status_code=202)
+def analyze(request: AnalyzeRequest):
+    # 요청을 접수하고 식별자만 돌려준다. 실제 분석은 Kafka 경로
+    # (image.downloaded -> consume -> image.analyzed)가 담당하며,
+    # 이 엔드포인트는 아직 그 경로에 일을 넣지 않는다 — 의도된 것이다.
+    # 계획 문서(2026-08-27-ml-service-red-green.md)의 "결정됨" 절에
+    # 근거와 검토한 대안이 있다.
+    return {
+        "jobId": str(uuid.uuid4()),
+        "status": "queued",
+        "image_path": request.image_path,
+    }
 
 
 @app.get("/health")
