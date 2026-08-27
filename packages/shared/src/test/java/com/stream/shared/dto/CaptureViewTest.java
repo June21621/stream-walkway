@@ -29,6 +29,7 @@ class CaptureViewTest {
         capture.setRoadStatus("양호");
         capture.setConfidence(0.95);
         setField(capture, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
+        setField(capture, "updatedAt", Instant.parse("2024-01-02T00:00:00Z"));
 
         CaptureView view = CaptureView.from(capture);
 
@@ -39,5 +40,6 @@ class CaptureViewTest {
         assertThat(view.roadStatus()).isEqualTo("양호");
         assertThat(view.confidence()).isEqualTo(0.95);
         assertThat(view.createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
+        assertThat(view.updatedAt()).isEqualTo(Instant.parse("2024-01-02T00:00:00Z"));
     }
 }

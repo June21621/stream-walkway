@@ -2,7 +2,7 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-08-27 — 전체 테스트 스위트를 실제로 실행해 GREEN/RED 수치를 실측값으로 교체. 같은 날 Docker를 띄워 writer의 SKIP 5개까지 해소했다. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
+> 최종 갱신: 2026-08-27 — Capture 조회 경로 구현 완료로 backend RED가 0이 되었다. 같은 날 전체 스위트 실측 교체와 Docker SKIP 5개 해소도 함께 했다. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
 
 ---
 
@@ -21,7 +21,7 @@
 - **Docker (해소됨)**: 1차 측정에서 `TrailCommandHandlerPostgresTest` 5개가 `Docker is not available`로 스킵됐습니다. 같은 날 Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했습니다(실 PostgreSQL 제약 이름과 예외 매핑이 하드코딩된 추정대로 맞음). 아래 표는 재실행 후 수치입니다.
 - **DB 미기동 (미해소)**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패합니다. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없습니다. Docker를 띄운 상태에서도 동일하게 실패하므로 **Docker 유무와 무관한 테스트 설정 문제**입니다.
 
-즉 아래 표의 RED 중 backend 5 / youtube 11 / ml 13 = **29개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 테스트 설정 문제입니다.
+즉 아래 표의 RED 중 youtube 11 / ml 13 = **24개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 테스트 설정 문제입니다.
 
 ---
 
@@ -33,9 +33,8 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 - **의도**: 테스트 코드만 작성
 - **실제**: 테스트 코드 + 소스 코드 스텁 (컴파일 가능한 최소 구조) 동시 생성
 
-2026-08-27 기준으로 스텁 중 상당수는 실제 구현으로 대체되었다. **아직 `UnsupportedOperationException` / `throw new Error('Not implemented')`를 던지는 채로 남아 있는 것은 다음 두 곳뿐이다.**
+2026-08-27 기준으로 스텁 중 상당수는 실제 구현으로 대체되었다. **아직 `throw new Error('Not implemented')`를 던지는 채로 남아 있는 것은 다음 한 곳뿐이다.**
 
-- `apps/backend` — `CaptureController` (2개 메서드), `CaptureServiceImpl` (2개 메서드)
 - `apps/youtube-service` — `src/app.js`의 `POST /download`, `GET /status/:jobId`
 
 ---
@@ -53,10 +52,10 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/main/java/.../model/Capture.java` | Model | 구현 완료 |
 | `src/main/java/.../service/StreamServiceImpl.java` | 구현체 | 구현 완료 (RestClient로 reader/writer 연동) |
 | `src/main/java/.../service/TrailServiceImpl.java` | 구현체 | 구현 완료 (RestClient로 reader/writer 연동) |
-| `src/main/java/.../service/CaptureServiceImpl.java` | 구현체 | **스텁** — `findAll()`, `findById()` 모두 `UnsupportedOperationException` |
+| `src/main/java/.../service/CaptureServiceImpl.java` | 구현체 | 구현 완료 (readerClient만 주입 — 캡처는 HTTP 생성 경로가 없다) |
 | `src/main/java/.../controller/StreamController.java` | Controller | 구현 완료 (X-Internal-Key 검증 포함) |
 | `src/main/java/.../controller/TrailController.java` | Controller | 구현 완료 (X-Internal-Key 검증 포함) |
-| `src/main/java/.../controller/CaptureController.java` | Controller | **스텁** — `getAll()`, `getById()` 모두 `UnsupportedOperationException` |
+| `src/main/java/.../controller/CaptureController.java` | Controller | 구현 완료 (`limit`/`sort` 기본값, 404 본문) |
 | `src/main/java/.../exception/GlobalExceptionHandler.java` | 예외 처리 | 구현 완료 (스텁 생성 이후 추가) |
 | `src/main/java/.../config/HttpClientConfig.java` | 설정 | 구현 완료 (스텁 생성 이후 추가) |
 
@@ -68,10 +67,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | 7 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 8 | 8 | 0 |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 0 | **5** |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 |
+| `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 | 6 | 6 | 0 |
 | `src/test/.../service/StreamServiceImplTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 |
 | `src/test/.../service/TrailServiceImplTest.java` | Mockito 단위 테스트 | 7 | 7 | 0 |
-| **합계** | | **36** | **31** | **5** |
+| **합계** | | **42** | **42** | **0** |
 
 ---
 
@@ -126,9 +126,9 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../TestSchemaSyncTest.java` | 스키마 동기화 검증 | 1 | 1 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 9 | 9 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 17 | 17 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 + `@Sql` | 10 | 10 | 0 |
-| **합계** | | **33** | **32** | **1** |
+| **합계** | | **41** | **40** | **1** |
 
 > 엔티티 테스트는 `packages/shared`로 이동했다. reader에는 더 이상 `entity/CaptureTest.java`가 없다.
 
@@ -167,11 +167,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 |------|------|-----|-------|-----|
 | `src/test/.../entity/StreamTest.java` | 순수 단위 테스트 | 6 | 6 | 0 |
 | `src/test/.../entity/TrailTest.java` | 순수 단위 테스트 | 9 | 9 | 0 |
-| `src/test/.../entity/CaptureTest.java` | 순수 단위 테스트 | 10 | 10 | 0 |
+| `src/test/.../entity/CaptureTest.java` | 순수 단위 테스트 | 12 | 12 | 0 |
 | `src/test/.../dto/StreamViewTest.java` | 순수 단위 테스트 | 2 | 2 | 0 |
 | `src/test/.../dto/TrailViewTest.java` | 순수 단위 테스트 | 2 | 2 | 0 |
 | `src/test/.../dto/CaptureViewTest.java` | 순수 단위 테스트 | 1 | 1 | 0 |
-| **합계** | | **30** | **30** | **0** |
+| **합계** | | **32** | **32** | **0** |
 
 ---
 
@@ -179,34 +179,19 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 | 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
 |--------|-------------|-------|-----|------|
-| backend | 36 | 31 | 5 | 0 |
+| backend | 42 | 42 | 0 | 0 |
 | youtube-service | 22 | 11 | 11 | 0 |
 | ml-service | 28 | 15 | 13 | 0 |
-| reader | 33 | 32 | 1 | 0 |
+| reader | 41 | 40 | 1 | 0 |
 | writer | 86 | 85 | 1 | 0 |
-| shared | 30 | 30 | 0 | 0 |
-| **합계** | **235** | **204** | **31** | **0** |
+| shared | 32 | 32 | 0 | 0 |
+| **합계** | **251** | **225** | **26** | **0** |
 
 > **이전 갱신(2026-08-16) 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다. 이번 표는 저장소의 모든 테스트를 실행해 집계한 값이다.
 
 ---
 
 ## RED 테스트 상세 — 구현이 필요한 항목
-
-### Backend — 5개 RED (전부 Capture 도메인)
-
-Stream·Trail 관련 RED는 전부 GREEN으로 전환되어 표에서 제거되었다.
-5개 모두 `Request processing failed: java.lang.UnsupportedOperationException: Not implemented`으로 실패한다.
-
-| 실패 테스트 | 필요한 구현 |
-|-----------|-----------|
-| `CaptureControllerTest.getAll_returns200WithEmptyList` | `CaptureController.getAll()` — `CaptureService.findAll()` 호출 후 200 반환 |
-| `CaptureControllerTest.getAll_returns200WithCaptureList` | 위와 동일 |
-| `CaptureControllerTest.getAll_returns200WithQueryParams` | `stream_id`, `trail_id`, `limit`, `sort` 파라미터 처리 |
-| `CaptureControllerTest.getById_returns200WhenFound` | `CaptureController.getById()` — `CaptureService.findById()` 호출 |
-| `CaptureControllerTest.getById_returns404WhenNotFound` | 없으면 404 + `{"error": "Capture not found", "id": N}` |
-
-> 선행 작업: `CaptureServiceImpl` 구현. 단, reader 쪽에도 `GET /captures/{id}`와 `/captures`의 필터 파라미터가 아직 없으므로 reader 확장이 먼저 필요하다. 현재 reader가 제공하는 것은 `GET /captures`(전체)와 `GET /captures/trail/{trailId}/latest` 두 개뿐이다.
 
 ### YouTube Service — 11개 RED
 
@@ -262,10 +247,10 @@ PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
    - app.js의 GET /status/:jobId 구현
    - index.js와 app.js 통합 (현재 앱 정의가 중복)
 
-3. Backend Capture 경로 — 5개 RED
-   - reader에 GET /captures/{id} 및 /captures 필터 파라미터 추가 (선행)
-   - backend CaptureServiceImpl 구현
-   - backend CaptureController에서 서비스 호출하도록 구현
+3. Backend Capture 경로 — 완료 (2026-08-27)
+   - reader에 GET /captures/{id} 및 /captures 필터 파라미터 추가 — 완료
+   - backend CaptureServiceImpl 구현 — 완료
+   - backend CaptureController에서 서비스 호출하도록 구현 — 완료
 
 4. 환경 의존 항목 (구현이 아니라 검증)
    - Docker 기동 후 TrailCommandHandlerPostgresTest 5개 실행 — 완료 (2026-08-27, 전부 통과)
@@ -279,3 +264,4 @@ PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
 - `TrailService` 구현체 — 완료 (설계: `docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`)
 - writer 지오메트리 검증 (길이 / Z·M 좌표 / 빈 지오메트리 / SRID 4326 범위) — 완료 (`docs/superpowers/specs/2026-08-26-writer-geometry-validation-design.md`)
 - `packages/shared` 엔티티·DTO 분리 — 완료
+- Capture 조회 경로 (`GET /api/captures`, `GET /api/captures/{id}`) — 완료 (계획: `docs/superpowers/plans/2026-08-27-capture-read-path.md`). 파이프라인의 출구가 열렸다. 함께 고친 것: `shared`에 `updatedAt` 누락, backend `CaptureController`의 `@RequestParam` 이름 누락(`?stream_id=`와 바인딩 안 됨)

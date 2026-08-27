@@ -11,7 +11,8 @@ public record CaptureView(
         String imagePath,
         String roadStatus,
         Double confidence,
-        Instant createdAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
     public static CaptureView from(Capture capture) {
         return new CaptureView(
@@ -21,7 +22,8 @@ public record CaptureView(
                 capture.getImagePath(),
                 capture.getRoadStatus(),
                 capture.getConfidence(),
-                capture.getCreatedAt()
+                capture.getCreatedAt(),
+                capture.getUpdatedAt()
         );
     }
 }

@@ -30,9 +30,20 @@ public class Capture {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = Instant.now();
+        // DB의 DEFAULT CURRENT_TIMESTAMP가 채운 값은 save() 직후 엔티티에
+        // 반영되지 않아 CaptureView.from(saved)이 null을 담게 된다.
+        // createdAt이 이미 같은 이유로 여기서 채워진다.
+        //
+        // @PreUpdate는 두지 않는다. 캡처는 Kafka image.analyzed로 INSERT만 되고
+        // 애플리케이션에 UPDATE 경로가 없으며, 갱신은 DB 트리거
+        // (update_captures_updated_at)가 담당한다.
+        updatedAt = createdAt;
     }
 
     public Long getId() { return id; }
@@ -47,4 +58,5 @@ public class Capture {
     public Double getConfidence() { return confidence; }
     public void setConfidence(Double confidence) { this.confidence = confidence; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

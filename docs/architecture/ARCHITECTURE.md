@@ -10,7 +10,7 @@ Stream Walkway는 스트리밍 데이터(예: YouTube 영상 등)를 수집하�
 ```text
 stream-walkway/
 ├── apps/                      # 주요 애플리케이션 (엔드투엔드 단위)
-│   ├── frontend/              # React/Next.js 기반 웹 프론트엔드
+│   ├── frontend/              # Next.js 정적 사이트 (CDN 배포, 런타임 서버 없음)
 │   ├── backend/               # Spring Boot API Gateway 및 오케스트레이션
 │   ├── youtube-service/       # Node.js 기반 YouTube/영상 캡처 서비스
 │   └── ml-service/            # Python/Node.js 기반 ML 분석 서비스

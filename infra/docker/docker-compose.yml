@@ -71,21 +71,6 @@ services:
       - stream-network
 
   # ================= apps =================
-  frontend:
-    build:
-      context: ../../apps/frontend
-      dockerfile: Dockerfile
-    container_name: stream-frontend
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${BACKEND_BASE_URL:-http://localhost:8080}
-      NODE_ENV: production
-    depends_on:
-      - backend
-    networks:
-      - stream-network
-
   backend:
     build:
       context: ../..
