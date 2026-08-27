@@ -2,7 +2,26 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-08-16 — Stream 도메인 GREEN 전환 반영 (`docs/superpowers/plans/2026-08-15-stream-cqrs-gis.md` 참고). 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
+> 최종 갱신: 2026-08-27 — 전체 테스트 스위트를 실제로 실행해 GREEN/RED 수치를 실측값으로 교체. 이 문서는 스텁 생성 당시의 스냅샷이 아니라 구현 진행에 맞춰 계속 갱신하는 문서입니다.
+
+---
+
+## 측정 방법 및 환경
+
+이 문서의 모든 테스트 수치는 추정이 아니라 2026-08-27에 실제로 실행한 결과입니다.
+
+| 대상 | 실행 명령 | 집계 방식 |
+|------|---------|---------|
+| shared / reader / writer / backend | `./services/writer/mvnw -o test -fae` (루트 애그리게이터가 4개 모듈 모두 빌드) | `target/surefire-reports/*.xml` 파싱 |
+| youtube-service | `npm test` (`jest --testPathPattern=tests/`) | jest JSON 리포터 |
+| ml-service | `python -m pytest tests -q` | pytest 요약 |
+
+**측정 당시 환경 제약** — 아래 두 항목은 코드 결함이 아니라 실행 환경 때문에 실패/스킵된 것입니다.
+
+- **Docker 미실행**: `TrailCommandHandlerPostgresTest` 5개가 `Docker is not available`로 스킵됨 (Testcontainers 기반 실 PostgreSQL 테스트)
+- **DB 미기동**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없음. 인프라를 띄우면 통과할 가능성이 높으나 그 상태로는 **미검증**임
+
+즉 아래 표의 RED 중 backend 5 / youtube 11 / ml 13 = **29개만이 실제 미구현으로 인한 RED**이고, reader·writer의 2개는 환경 의존 실패입니다.
 
 ---
 
@@ -14,181 +33,239 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 - **의도**: 테스트 코드만 작성
 - **실제**: 테스트 코드 + 소스 코드 스텁 (컴파일 가능한 최소 구조) 동시 생성
 
-소스 코드 스텁은 모두 `UnsupportedOperationException` 또는 `throw new Error('Not implemented')`를 던지도록 되어 있으며, 실제 구현은 되어 있지 않다.
+2026-08-27 기준으로 스텁 중 상당수는 실제 구현으로 대체되었다. **아직 `UnsupportedOperationException` / `throw new Error('Not implemented')`를 던지는 채로 남아 있는 것은 다음 두 곳뿐이다.**
+
+- `apps/backend` — `CaptureController` (2개 메서드), `CaptureServiceImpl` (2개 메서드)
+- `apps/youtube-service` — `src/app.js`의 `POST /download`, `GET /status/:jobId`
 
 ---
 
-## 생성된 파일 전체 목록
+## 파일별 현황
 
 ### apps/backend (Spring Boot)
 
-#### 소스 코드 (신규 생성 — 스텁)
+#### 소스 코드
 
-| 파일 | 종류 | 설명 |
-|------|------|------|
-| `src/main/java/.../model/Stream.java` | Model | id, name, location, created_at |
-| `src/main/java/.../model/Trail.java` | Model | id, stream_id, camera_number, location, direction, status, created_at |
-| `src/main/java/.../model/Capture.java` | Model | id, trail_id, stream_id, image_path, road_status, confidence, created_at, updated_at |
-| `src/main/java/.../service/StreamService.java` | Interface | findAll(), findById(), create() |
-| `src/main/java/.../service/TrailService.java` | Interface | findAll(streamId), findById(), create() |
-| `src/main/java/.../service/CaptureService.java` | Interface | findAll(streamId, trailId, limit, sort), findById() |
-| `src/main/java/.../controller/StreamController.java` | Controller 스텁 | 모든 메서드 UnsupportedOperationException |
-| `src/main/java/.../controller/TrailController.java` | Controller 스텁 | 모든 메서드 UnsupportedOperationException |
-| `src/main/java/.../controller/CaptureController.java` | Controller 스텁 | 모든 메서드 UnsupportedOperationException |
+| 파일 | 종류 | 현재 상태 |
+|------|------|---------|
+| `src/main/java/.../model/Stream.java` | Model | 구현 완료 |
+| `src/main/java/.../model/Trail.java` | Model | 구현 완료 |
+| `src/main/java/.../model/Capture.java` | Model | 구현 완료 |
+| `src/main/java/.../service/StreamServiceImpl.java` | 구현체 | 구현 완료 (RestClient로 reader/writer 연동) |
+| `src/main/java/.../service/TrailServiceImpl.java` | 구현체 | 구현 완료 (RestClient로 reader/writer 연동) |
+| `src/main/java/.../service/CaptureServiceImpl.java` | 구현체 | **스텁** — `findAll()`, `findById()` 모두 `UnsupportedOperationException` |
+| `src/main/java/.../controller/StreamController.java` | Controller | 구현 완료 (X-Internal-Key 검증 포함) |
+| `src/main/java/.../controller/TrailController.java` | Controller | 구현 완료 (X-Internal-Key 검증 포함) |
+| `src/main/java/.../controller/CaptureController.java` | Controller | **스텁** — `getAll()`, `getById()` 모두 `UnsupportedOperationException` |
+| `src/main/java/.../exception/GlobalExceptionHandler.java` | 예외 처리 | 구현 완료 (스텁 생성 이후 추가) |
+| `src/main/java/.../config/HttpClientConfig.java` | 설정 | 구현 완료 (스텁 생성 이후 추가) |
 
-#### 테스트 코드 (신규 생성)
+#### 테스트 코드
 
-| 파일 | 방식 | 테스트 수 | 상태 |
-|------|------|-----------|------|
-| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | GREEN |
-| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | GREEN (2026-08-16) |
-| `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | RED |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | RED |
+| 파일 | 방식 | 전체 | GREEN | RED |
+|------|------|-----|-------|-----|
+| `src/test/.../BackendApplicationTests.java` | `@SpringBootTest` | 1 | 1 | 0 |
+| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | 7 | 0 |
+| `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 8 | 8 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 0 | **5** |
+| `src/test/.../service/StreamServiceImplTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 |
+| `src/test/.../service/TrailServiceImplTest.java` | Mockito 단위 테스트 | 7 | 7 | 0 |
+| **합계** | | **36** | **31** | **5** |
 
 ---
 
 ### apps/youtube-service (Node.js/Express)
 
-#### 소스 코드 (신규 생성 — 스텁)
+#### 소스 코드
 
-| 파일 | 종류 | 설명 |
-|------|------|------|
-| `src/app.js` | Express 앱 | index.js에서 app 분리. POST /download, GET /status/:jobId 스텁 포함 |
+| 파일 | 종류 | 현재 상태 |
+|------|------|---------|
+| `src/app.js` | Express 앱 | `POST /download`, `GET /status/:jobId` 둘 다 **스텁** (`throw new Error('Not implemented')`) |
+| `src/kafka.js` | Kafka 프로듀서 | 구현 완료 (`connectKafka`, `publishMessage`) |
+| `src/index.js` | 엔트리포인트 | 구현 완료. 단 `app.js`를 import하지 않고 Express 앱을 따로 정의하고 있어 **중복 상태** |
 
-#### 설정 변경
+#### 테스트 코드
 
-| 파일 | 변경 내용 |
-|------|---------|
-| `package.json` | devDependencies에 `jest@^29`, `supertest@^7` 추가 / `test` 스크립트 추가 |
-
-#### 테스트 코드 (신규 생성)
-
-| 파일 | 방식 | 테스트 수 | 상태 |
-|------|------|-----------|------|
-| `tests/app.test.js` | Jest + Supertest | 10 | GREEN 1 / RED 9 |
-| `tests/kafka.test.js` | Jest (kafkajs mock) | 12 | GREEN 10 / RED 2 |
+| 파일 | 방식 | 전체 | GREEN | RED |
+|------|------|-----|-------|-----|
+| `tests/app.test.js` | Jest + Supertest | 10 | 1 | **9** |
+| `tests/kafka.test.js` | Jest (kafkajs mock) | 12 | 10 | **2** |
+| **합계** | | **22** | **11** | **11** |
 
 ---
 
 ### apps/ml-service (Python/FastAPI)
 
-#### 설정 변경
+#### 소스 코드
 
-| 파일 | 변경 내용 |
-|------|---------|
-| `requirements.txt` | `pytest`, `pytest-asyncio`, `httpx` 추가 |
+| 파일 | 종류 | 현재 상태 |
+|------|------|---------|
+| `main.py` — `GET /health` | 엔드포인트 | 동작하나 명세와 응답 형식 불일치 (`{"status":"ok","service":"ml-service"}` 반환) |
+| `main.py` — `POST /analyze` | 엔드포인트 | **미존재** (호출 시 404) |
+| `main.py` — `consume()` | Kafka 소비/발행 | 파이프라인은 동작하나 분석 결과가 고정값 (`roadStatus: "양호"`, `confidence: 0.95`). 메시지 루프에 예외 처리 없음 |
 
-#### 테스트 코드 (신규 생성)
+#### 테스트 코드
 
-| 파일 | 방식 | 테스트 수 | 상태 |
-|------|------|-----------|------|
-| `tests/__init__.py` | — | — | — |
-| `tests/test_main.py` | pytest + FastAPI TestClient | 12 | GREEN 1 / RED 11 |
-| `tests/test_consume.py` | pytest + AsyncMock | 15 | GREEN 12 / RED 3 |
+| 파일 | 방식 | 전체 | GREEN | RED |
+|------|------|-----|-------|-----|
+| `tests/test_main.py` | pytest + FastAPI TestClient | 12 | 1 | **11** |
+| `tests/test_consume.py` | pytest + AsyncMock | 16 | 14 | **2** |
+| **합계** | | **28** | **15** | **13** |
 
 ---
 
 ### services/reader (Spring Boot)
 
-#### 설정 변경
+#### 테스트 코드
 
-| 파일 | 변경 내용 |
-|------|---------|
-| `pom.xml` | `h2` test scope 추가 (`@DataJpaTest` 용) |
+| 파일 | 방식 | 전체 | GREEN | RED |
+|------|------|-----|-------|-----|
+| `src/test/.../ReaderApplicationTests.java` | `@SpringBootTest` | 1 | 0 | **1** (환경 의존 — 위 "측정 방법" 참고) |
+| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
+| `src/test/.../TestSchemaSyncTest.java` | 스키마 동기화 검증 | 1 | 1 | 0 |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 |
+| `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 9 | 9 | 0 |
+| `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 + `@Sql` | 10 | 10 | 0 |
+| **합계** | | **33** | **32** | **1** |
 
-#### 테스트 코드 (신규 생성)
-
-| 파일 | 방식 | 테스트 수 | 상태 |
-|------|------|-----------|------|
-| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | GREEN |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | GREEN |
-| `src/test/.../entity/CaptureTest.java` | 순수 단위 테스트 (리플렉션) | 8 | GREEN |
-| `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 + `@Sql` | 9 | GREEN |
+> 엔티티 테스트는 `packages/shared`로 이동했다. reader에는 더 이상 `entity/CaptureTest.java`가 없다.
 
 ---
 
 ### services/writer (Spring Boot)
 
-#### 설정 변경
+#### 테스트 코드
 
-| 파일 | 변경 내용 |
-|------|---------|
-| `pom.xml` | `h2` test scope 추가 (`@DataJpaTest` 용) |
-
-#### 테스트 코드 (신규 생성)
-
-| 파일 | 방식 | 테스트 수 | 상태 |
-|------|------|-----------|------|
-| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | GREEN |
-| `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 7 | GREEN |
-| `src/test/.../entity/CaptureTest.java` | 순수 단위 테스트 (리플렉션) | 9 | GREEN |
-| `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 + `TestEntityManager` | 7 | GREEN |
+| 파일 | 방식 | 전체 | GREEN | RED | SKIP |
+|------|------|-----|-------|-----|------|
+| `src/test/.../WriterApplicationTests.java` | `@SpringBootTest` | 1 | 0 | **1** (환경 의존) | 0 |
+| `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 | 0 |
+| `src/test/.../TestSchemaSyncTest.java` | 스키마 동기화 검증 | 1 | 1 | 0 | 0 |
+| `src/test/.../command/StreamCommandHandlerTest.java` | Mockito + H2 | 10 | 10 | 0 | 0 |
+| `src/test/.../command/StreamCommandHandlerConstraintTest.java` | 제약조건 검증 | 2 | 2 | 0 | 0 |
+| `src/test/.../command/TrailCommandHandlerTest.java` | Mockito + H2 | 17 | 17 | 0 | 0 |
+| `src/test/.../command/TrailCommandHandlerConstraintTest.java` | 제약조건 검증 | 8 | 8 | 0 | 0 |
+| `src/test/.../command/TrailCommandHandlerPostgresTest.java` | Testcontainers + 실 PostgreSQL | 5 | 0 | 0 | **5** (Docker 없음) |
+| `src/test/.../command/CaptureCommandHandlerTest.java` | Mockito 단위 테스트 | 4 | 4 | 0 | 0 |
+| `src/test/.../command/GeometryValidatorTest.java` | 순수 단위 테스트 | 8 | 8 | 0 | 0 |
+| `src/test/.../command/GeometryColumnConstraintTest.java` | 제약조건 검증 | 5 | 5 | 0 | 0 |
+| `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 | 0 |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 | 0 |
+| `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
+| `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 | 8 | 8 | 0 | 0 |
+| **합계** | | **86** | **80** | **1** | **5** |
 
 ---
 
-## 테스트 현황 요약
+### packages/shared (공유 라이브러리)
 
-| 서비스 | 전체 테스트 수 | GREEN | RED |
-|--------|-------------|-------|-----|
-| backend | 21 | 9 | 12 |
-| youtube-service | 22 | 11 | 11 |
-| ml-service | 27 | 13 | 14 |
-| reader | 26 | 26 | 0 |
-| writer | 26 | 26 | 0 |
-| **합계** | **122** | **85** | **37** |
+스텁 생성 당시에는 없던 모듈로, reader/writer가 공유하는 엔티티와 뷰 DTO를 담는다.
 
-> backend GREEN 9개 = 초기 스텁 시절 GREEN이던 3개(HealthCheckTest) + Stream CQRS 계획 완료로 전환된 6개(StreamControllerTest). reader/writer의 Stream 관련 테스트(`StreamCommandHandlerTest`, `StreamControllerTest` 등 총 7개)는 스텁 생성 당시 존재하지 않았던 신규 파일이라 이 표에는 포함되지 않음 — 상세는 `docs/superpowers/plans/2026-08-15-stream-cqrs-gis.md` 참고.
+| 파일 | 방식 | 전체 | GREEN | RED |
+|------|------|-----|-------|-----|
+| `src/test/.../entity/StreamTest.java` | 순수 단위 테스트 | 6 | 6 | 0 |
+| `src/test/.../entity/TrailTest.java` | 순수 단위 테스트 | 9 | 9 | 0 |
+| `src/test/.../entity/CaptureTest.java` | 순수 단위 테스트 | 10 | 10 | 0 |
+| `src/test/.../dto/StreamViewTest.java` | 순수 단위 테스트 | 2 | 2 | 0 |
+| `src/test/.../dto/TrailViewTest.java` | 순수 단위 테스트 | 2 | 2 | 0 |
+| `src/test/.../dto/CaptureViewTest.java` | 순수 단위 테스트 | 1 | 1 | 0 |
+| **합계** | | **30** | **30** | **0** |
+
+---
+
+## 테스트 현황 요약 (2026-08-27 실측)
+
+| 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
+|--------|-------------|-------|-----|------|
+| backend | 36 | 31 | 5 | 0 |
+| youtube-service | 22 | 11 | 11 | 0 |
+| ml-service | 28 | 15 | 13 | 0 |
+| reader | 33 | 32 | 1 | 0 |
+| writer | 86 | 80 | 1 | 5 |
+| shared | 30 | 30 | 0 | 0 |
+| **합계** | **235** | **199** | **31** | **5** |
+
+> **이전 갱신(2026-08-16) 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다. 이번 표는 저장소의 모든 테스트를 실행해 집계한 값이다.
 
 ---
 
 ## RED 테스트 상세 — 구현이 필요한 항목
 
-### Backend — 12개 RED (Stream 관련 4개 항목은 2026-08-16 GREEN 전환되어 아래 표에서 제거됨)
+### Backend — 5개 RED (전부 Capture 도메인)
 
-| 대상 | 필요한 구현 |
-|------|-----------|
-| `TrailController.getAll()` | stream_id 필터 포함, TrailService.findAll() 호출 후 200 반환 (설계 완료: `docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`) |
-| `TrailController.getById()` | TrailService.findById() 호출, 없으면 404 + `{"error": "Trail not found", "id": N}` |
-| `TrailController.create()` | X-Internal-Key 검증, TrailService.create() 호출 후 201 반환 |
-| `CaptureController.getAll()` | stream_id, trail_id, limit, sort 파라미터 처리 후 200 반환 |
-| `CaptureController.getById()` | CaptureService.findById() 호출, 없으면 404 + `{"error": "Capture not found", "id": N}` |
-| `TrailService` 구현체 | 인터페이스 구현 (DB 연동 포함, 설계 완료) |
-| `CaptureService` 구현체 | 인터페이스 구현 (DB 연동 포함) |
+Stream·Trail 관련 RED는 전부 GREEN으로 전환되어 표에서 제거되었다.
+5개 모두 `Request processing failed: java.lang.UnsupportedOperationException: Not implemented`으로 실패한다.
+
+| 실패 테스트 | 필요한 구현 |
+|-----------|-----------|
+| `CaptureControllerTest.getAll_returns200WithEmptyList` | `CaptureController.getAll()` — `CaptureService.findAll()` 호출 후 200 반환 |
+| `CaptureControllerTest.getAll_returns200WithCaptureList` | 위와 동일 |
+| `CaptureControllerTest.getAll_returns200WithQueryParams` | `stream_id`, `trail_id`, `limit`, `sort` 파라미터 처리 |
+| `CaptureControllerTest.getById_returns200WhenFound` | `CaptureController.getById()` — `CaptureService.findById()` 호출 |
+| `CaptureControllerTest.getById_returns404WhenNotFound` | 없으면 404 + `{"error": "Capture not found", "id": N}` |
+
+> 선행 작업: `CaptureServiceImpl` 구현. 단, reader 쪽에도 `GET /captures/{id}`와 `/captures`의 필터 파라미터가 아직 없으므로 reader 확장이 먼저 필요하다. 현재 reader가 제공하는 것은 `GET /captures`(전체)와 `GET /captures/trail/{trailId}/latest` 두 개뿐이다.
 
 ### YouTube Service — 11개 RED
 
 | 대상 | 필요한 구현 |
 |------|-----------|
-| `POST /download` | 요청 검증, jobStore 저장, 202 반환 |
-| `GET /status/:jobId` | jobStore 조회, 없으면 404 반환 |
-| `/download` → Kafka 발행 | 다운로드 완료 시 `publishMessage('image.downloaded', {...})` 호출 |
+| `POST /download` (app.test.js 9개) | 요청 검증, jobStore 저장, 202 반환, `progress` 필드를 포함한 상태 관리 |
+| `GET /status/:jobId` | jobStore 조회, 없으면 404 반환 (현재는 500) |
+| `/download` → Kafka 발행 (kafka.test.js 2개) | 다운로드 완료 시 `publishMessage('image.downloaded', {...})` 호출 |
 
-### ML Service — 14개 RED
+> 별개 이슈: `src/index.js`가 `src/app.js`를 import하지 않고 Express 앱을 따로 정의하고 있다. `/download`를 구현할 때 두 파일을 하나로 합쳐야 실제 서버에 반영된다.
+
+### ML Service — 13개 RED
 
 | 대상 | 필요한 구현 |
 |------|-----------|
-| `GET /health` | 응답을 `{"status": "healthy", "model": "loaded", "uptime_sec": N}` 형식으로 변경 |
-| `POST /analyze` | Pydantic 요청 모델 정의, jobId 생성, 202 반환 |
-| `consume()` 예외 처리 | `async for msg in consumer` 내부에 `try/except` 추가하여 JSON 파싱 에러 무시 |
+| `GET /health` (3개) | 응답을 `{"status": "healthy", "model": "loaded", "uptime_sec": N}` 형식으로 변경 |
+| `POST /analyze` (8개) | 엔드포인트 신설. Pydantic 요청 모델 정의, 고유 jobId 생성, `status: "queued"` 및 `image_path` 포함해 202 반환, 필수 필드 누락 시 422 |
+| `consume()` 예외 처리 (2개) | `async for msg in consumer` 내부에 `try/except` 추가하여 JSON 파싱 에러를 무시하고 다음 메시지를 계속 처리 |
+
+### reader / writer — 각 1개 RED (환경 의존)
+
+| 대상 | 원인 | 조치 |
+|------|-----|-----|
+| `ReaderApplicationTests.contextLoads` | `@SpringBootTest`가 실 DataSource를 요구하나 테스트 프로파일에 JDBC URL 없음 | 테스트용 DataSource 설정을 주거나, 인프라 기동 후 재측정 |
+| `WriterApplicationTests.contextLoads` | 동일 | 동일 |
+
+### writer — 5개 SKIP (환경 의존)
+
+`TrailCommandHandlerPostgresTest`가 Testcontainers로 실 PostgreSQL을 띄우는데 Docker가 실행 중이 아니라 스킵되었다. 실 PostgreSQL의 제약조건 이름과 유니크/FK 위반 예외 매핑을 검증하는 테스트이므로 **Docker를 띄우고 재측정하기 전까지 이 5개는 미검증 상태**다.
 
 ---
 
 ## 다음 단계 (GREEN 전환 순서 권장)
 
 ```
-1. ML Service
-   - GET /health 응답 형식 수정 (간단한 변경)
-   - POST /analyze 엔드포인트 추가
+1. ML Service — 13개 RED (파일 1개만 수정, 비용 대비 회수 최대)
+   - GET /health 응답 형식 수정
+   - POST /analyze 엔드포인트 추가 (Pydantic 모델 + jobId 생성)
    - consume() 내부 try/except 추가
 
-2. YouTube Service
-   - app.js의 POST /download 구현
+2. YouTube Service — 11개 RED
+   - app.js의 POST /download 구현 (jobStore + Kafka 발행)
    - app.js의 GET /status/:jobId 구현
+   - index.js와 app.js 통합 (현재 앱 정의가 중복)
 
-3. Backend
-   - @ControllerAdvice 에러 핸들러 추가 (404 body 반환) — 완료 (Stream 기준)
-   - StreamService 구현체 작성 — 완료 (2026-08-16, RestClient 기반 reader/writer 연동)
-   - TrailService 구현체 작성 — 설계 완료, 구현 대기 (`docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`)
-   - CaptureService 구현체 작성 — 미착수
-   - 각 Controller에서 서비스 호출하도록 구현 — Stream 완료, Trail/Capture 남음
+3. Backend Capture 경로 — 5개 RED
+   - reader에 GET /captures/{id} 및 /captures 필터 파라미터 추가 (선행)
+   - backend CaptureServiceImpl 구현
+   - backend CaptureController에서 서비스 호출하도록 구현
+
+4. 환경 의존 항목 재측정 (구현이 아니라 검증)
+   - Docker 기동 후 TrailCommandHandlerPostgresTest 5개 실행
+   - 테스트용 DataSource 설정 후 reader/writer contextLoads 2개 확인
 ```
+
+### 완료된 항목
+
+- `@ControllerAdvice` 에러 핸들러 (`GlobalExceptionHandler`) — 완료
+- `StreamService` 구현체 — 완료 (2026-08-16, RestClient 기반 reader/writer 연동)
+- `TrailService` 구현체 — 완료 (설계: `docs/superpowers/specs/2026-08-16-trail-cqrs-gis-design.md`)
+- writer 지오메트리 검증 (길이 / Z·M 좌표 / 빈 지오메트리 / SRID 4326 범위) — 완료 (`docs/superpowers/specs/2026-08-26-writer-geometry-validation-design.md`)
+- `packages/shared` 엔티티·DTO 분리 — 완료
