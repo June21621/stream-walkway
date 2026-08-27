@@ -4,10 +4,6 @@ server:
 spring:
   application:
     name: backend
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 
 reader:
   base-url: ${READER_BASE_URL:http://localhost:8001}
