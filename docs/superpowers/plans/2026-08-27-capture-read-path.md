@@ -807,6 +807,13 @@ Postman 컬렉션에 updated_at 필드와 404 응답 본문 예시를 반영했�
 
 **남는 RED:** youtube-service 11개(미구현), ml-service 13개(미구현), `ApplicationTests.contextLoads` 2개(테스트 설정 문제). backend RED는 0이 된다.
 
+## Phase 2 완료 후 정리 대상
+
+- **`CaptureRepository.findByTrailId` / `findByStreamId`가 죽은 메서드가 됐다.** Task 3의 `findFiltered`가 두 경우를 모두 덮는다. Phase 1 시점에 지우지 않은 것은 backend가 붙기 전까지 실제로 아무도 부르지 않는지 확정할 수 없어서다. Phase 2가 끝나면 호출자를 확인하고 지운다. `findFirstByTrailIdOrderByCreatedAtDesc`는 `/captures/trail/{id}/latest`가 계속 쓰므로 남긴다.
+- **reader `CaptureController`의 `@ExceptionHandler(IllegalArgumentException)`가 컨트롤러 전체 범위다.** 지금은 `getAll`의 파라미터 검증만 IAE를 던지지만, 나중에 다른 메서드에서 내부 오류로 IAE가 나면 500이어야 할 것이 400으로 나간다. 그런 경로가 생기면 파라미터 검증 전용 예외로 분리한다.
+
+---
+
 ## 이 계획이 다루지 않는 것
 
 - **캡처 생성 경로.** 캡처는 Kafka `image.analyzed`로만 생기며 이 계획은 읽기 전용이다
