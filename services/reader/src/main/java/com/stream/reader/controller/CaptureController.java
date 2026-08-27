@@ -7,6 +7,7 @@ import com.stream.shared.dto.CaptureView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -40,6 +41,19 @@ public class CaptureController {
         return captureRepository.findAll().stream()
                 .map(CaptureView::from)
                 .toList();
+    }
+
+    // ─────────────────────────────────────────
+    // 단건 조회 (PostgreSQL)
+    // 본문 없는 404를 낸다 — 에러 본문 조립은 게이트웨이(backend) 책임이며,
+    // backend가 HttpClientErrorException.NotFound를 잡아 Optional.empty()로 바꾼다.
+    // ─────────────────────────────────────────
+    @GetMapping("/{id}")
+    public ResponseEntity<CaptureView> getById(@PathVariable Long id) {
+        return captureRepository.findById(id)
+                .map(CaptureView::from)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // ─────────────────────────────────────────

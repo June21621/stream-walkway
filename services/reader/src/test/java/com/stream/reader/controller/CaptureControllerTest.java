@@ -13,7 +13,9 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -71,6 +73,59 @@ class CaptureControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    // ─────────────────────────────────────────
+    // GET /captures/{id}
+    // ─────────────────────────────────────────
+
+    // Capture는 id/createdAt/updatedAt에 setter가 없다(@PrePersist와 DB가 채우는 값).
+    // 테스트에서 특정 값을 넣으려면 리플렉션이 필요하다.
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        java.lang.reflect.Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    @Test
+    @DisplayName("GET /captures/{id} - 존재하는 캡처를 200과 CaptureView로 반환한다")
+    void getById_returns200WhenFound() throws Exception {
+        // given
+        Capture capture = new Capture();
+        setField(capture, "id", 7L);
+        capture.setTrailId(1);
+        capture.setStreamId(2);
+        capture.setImagePath("/images/capture_007.jpg");
+        capture.setRoadStatus("양호");
+        capture.setConfidence(0.95);
+        setField(capture, "createdAt", Instant.parse("2024-01-01T00:00:00Z"));
+        setField(capture, "updatedAt", Instant.parse("2024-01-02T00:00:00Z"));
+        given(captureRepository.findById(7L)).willReturn(Optional.of(capture));
+
+        // when & then
+        mockMvc.perform(get("/captures/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.trailId").value(1))
+                .andExpect(jsonPath("$.streamId").value(2))
+                .andExpect(jsonPath("$.imagePath").value("/images/capture_007.jpg"))
+                .andExpect(jsonPath("$.roadStatus").value("양호"))
+                .andExpect(jsonPath("$.confidence").value(0.95))
+                .andExpect(jsonPath("$.createdAt").value("2024-01-01T00:00:00Z"))
+                .andExpect(jsonPath("$.updatedAt").value("2024-01-02T00:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("GET /captures/{id} - 없으면 본문 없는 404를 반환한다")
+    void getById_returns404WhenNotFound() throws Exception {
+        // given
+        given(captureRepository.findById(999L)).willReturn(Optional.empty());
+
+        // when & then
+        mockMvc.perform(get("/captures/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(""));
     }
 
     // ─────────────────────────────────────────
