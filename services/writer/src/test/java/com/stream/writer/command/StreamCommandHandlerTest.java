@@ -123,4 +123,52 @@ class StreamCommandHandlerTest {
         // then
         assertThat(result.getName()).hasSize(255);
     }
+
+    @Test
+    @DisplayName("handle() - location에 Z/M/ZM 좌표가 있으면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnNon2dLocation() {
+        // given: streams.location은 GEOMETRY(LINESTRING,4326)이라 3D/4D 좌표를 컬럼이 거부한다.
+        // 검증이 없으면 저장까지 가서 DataIntegrityViolationException(22018) → 500이 된다.
+        for (String wkt : new String[]{
+                "LINESTRING Z(126.97 37.55 1, 126.98 37.56 2)",
+                "LINESTRING M(126.97 37.55 1, 126.98 37.56 2)",
+                "LINESTRING ZM(126.97 37.55 1 9, 126.98 37.56 2 9)"}) {
+            CreateStreamCommand command = new CreateStreamCommand("한강 산책로", wkt);
+
+            // when & then
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                    .as(wkt)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("2D");
+        }
+        verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
+    }
+
+    @Test
+    @DisplayName("handle() - location이 빈 지오메트리면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnEmptyLocation() {
+        // given: LINESTRING EMPTY는 지금 201로 저장된다. Trail의 POINT EMPTY(500)와
+        // 동작이 갈리는 비대칭이라 양쪽 다 400으로 맞춘다.
+        CreateStreamCommand command = new CreateStreamCommand("한강 산책로", "LINESTRING EMPTY");
+
+        // when & then
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("empty");
+        verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
+    }
+
+    @Test
+    @DisplayName("handle() - location 좌표가 WGS84 범위를 벗어나면 IllegalArgumentException을 던진다 (저장 시도 안 함)")
+    void handle_throwsIllegalArgumentExceptionOnOutOfBoundsLocation() {
+        // given: SRID 4326인데 위도 999는 존재할 수 없다. 컬럼은 이걸 막지 않아
+        // 검증이 없으면 201로 저장된다.
+        CreateStreamCommand command = new CreateStreamCommand("한강 산책로", "LINESTRING(999 999, 1000 1000)");
+
+        // when & then
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WGS84 bounds");
+        verify(streamRepository, org.mockito.Mockito.never()).save(any(Stream.class));
+    }
 }

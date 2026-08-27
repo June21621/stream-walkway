@@ -47,9 +47,14 @@ public class StreamCommandHandler {
         }
 
         WKTReader wktReader = new WKTReader(new GeometryFactory(new PrecisionModel(), Stream.SRID));
+        // 캐스트를 먼저 하고 검증한다. 그래야 LineString이 아닌 WKT는 지금처럼
+        // ClassCastException 메시지로 400이 나가고 기존 동작이 바뀌지 않는다.
+        LineString location = (LineString) wktReader.read(command.location());
+        GeometryValidator.validateLocation(location);
+
         Stream stream = new Stream();
         stream.setName(command.name());
-        stream.setLocation((LineString) wktReader.read(command.location()));
+        stream.setLocation(location);
         return streamRepository.save(stream);
     }
 }
