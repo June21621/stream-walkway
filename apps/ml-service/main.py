@@ -1,9 +1,17 @@
 import asyncio
 import os
 import json
+import time
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+
+
+# 프로세스가 살아 있는 시간을 재기 위한 기준점.
+# lifespan이 아니라 모듈 로드 시점에 잡는다 — 테스트는 lifespan을 mock으로
+# 대체하므로 lifespan 안에서 기록하면 테스트 경로에서 값이 생기지 않는다.
+# monotonic을 쓰는 이유는 시스템 시계가 조정돼도 뒤로 가지 않기 때문이다.
+_STARTED_AT = time.monotonic()
 
 
 # ─────────────────────────────────────────
@@ -62,4 +70,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "ml-service"}
+    # model은 API 명세가 요구하는 고정 문자열이다. 이 서비스는 아직 실제 ML
+    # 모델을 적재하지 않고 consume()이 고정값(양호/0.95)을 낸다.
+    # 진짜 모델을 붙이면 이 값을 실제 적재 상태에서 끌어와야 한다.
+    return {
+        "status": "healthy",
+        "model": "loaded",
+        "uptime_sec": round(time.monotonic() - _STARTED_AT, 3),
+    }
