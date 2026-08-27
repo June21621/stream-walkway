@@ -1,9 +1,11 @@
 package com.stream.backend.service;
 
+import com.stream.backend.exception.InvalidStreamGeometryException;
 import com.stream.backend.model.Stream;
 import com.stream.shared.dto.StreamView;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -60,16 +62,16 @@ public class StreamServiceImpl implements StreamService {
         try {
             created = writerClient.post()
                     .uri("/internal/streams")
-                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(new CreateStreamRequest(stream.getName(), stream.getLocation()))
                     .retrieve()
                     .body(StreamView.class);
-        } catch (org.springframework.web.client.HttpClientErrorException.BadRequest e) {
-            throw new com.stream.backend.exception.InvalidStreamGeometryException(
+        } catch (HttpClientErrorException.BadRequest e) {
+            throw new InvalidStreamGeometryException(
                     "Writer rejected the stream geometry: " + e.getResponseBodyAsString());
         }
         if (created == null) {
-            throw new com.stream.backend.exception.InvalidStreamGeometryException(
+            throw new InvalidStreamGeometryException(
                     "Writer returned an empty response for stream creation");
         }
         return toModel(created);
