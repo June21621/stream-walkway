@@ -70,6 +70,26 @@ services:
     networks:
       - stream-network
 
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    container_name: stream-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stream-network
+
   # ================= apps =================
   backend:
     build:
@@ -118,10 +138,17 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-captures}
+      CAPTURE_SOURCE: ${CAPTURE_SOURCE:-testsrc}
     depends_on:
       kafka:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - stream-network
@@ -205,6 +232,7 @@ volumes:
   postgres_data:
   redis_data:
   kafka_data:
+  minio_data:
 
 networks:
   stream-network:
