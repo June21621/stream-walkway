@@ -286,7 +286,7 @@
     },
     {
       "name": "YouTube Service :3001",
-      "description": "YouTube 영상에서 이미지를 다운로드하고 Kafka로 이벤트를 발행하는 서비스",
+      "description": "ffmpeg로 스트림에서 프레임을 캡처해 MinIO에 업로드하고 Kafka로 이벤트를 발행하는 서비스 (YouTube 직접 다운로드는 이용약관 문제로 지원하지 않음)",
       "item": [
         {
           "name": "이미지 다운로드 요청",
@@ -297,7 +297,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stream_id\": 1,\n  \"trail_id\": 1,\n  \"youtube_url\": \"https://www.youtube.com/watch?v=example\",\n  \"interval_sec\": 5\n}",
+              "raw": "{\n  \"stream_id\": 1,\n  \"trail_id\": 1,\n  \"youtube_url\": \"https://www.youtube.com/watch?v=example\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -352,6 +352,13 @@
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
               "body": "{\n  \"jobId\": \"job_abc123\",\n  \"status\": \"completed\",\n  \"progress\": 100,\n  \"downloaded_count\": 20\n}"
+            },
+            {
+              "name": "200 OK - 실패",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"jobId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"status\": \"failed\",\n  \"progress\": 0,\n  \"downloaded_count\": 0,\n  \"error\": \"capture failed: Server returned 404 Not Found\"\n}"
             }
           ]
         }
