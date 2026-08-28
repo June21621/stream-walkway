@@ -1,4 +1,10 @@
-const { buildKey } = require('../src/storage');
+const { HeadBucketCommand, CreateBucketCommand } = require('@aws-sdk/client-s3');
+const { buildKey, createStorage } = require('../src/storage');
+
+// 진짜 MinIO 없이 send()만 흉내내는 가짜 클라이언트.
+function fakeClient(sendImpl) {
+  return { send: jest.fn(sendImpl) };
+}
 
 describe('storage.js - buildKey', () => {
 
@@ -21,5 +27,56 @@ describe('storage.js - buildKey', () => {
   test('streamId와 trailId가 경로에 그대로 들어간다', () => {
     expect(buildKey(42, 7, new Date('2026-01-01T00:00:00.000Z')))
       .toBe('captures/42/7/2026-01-01T00-00-00Z.jpg');
+  });
+});
+
+describe('storage.js - ensureBucket', () => {
+  const env = { MINIO_BUCKET: 'captures' };
+
+  test('버킷이 이미 있으면 CreateBucketCommand를 보내지 않는다', async () => {
+    const client = fakeClient(async () => ({}));
+    const { ensureBucket } = createStorage(env, client);
+
+    await ensureBucket();
+
+    const sentCreate = client.send.mock.calls
+      .some(([cmd]) => cmd instanceof CreateBucketCommand);
+    expect(sentCreate).toBe(false);
+  });
+
+  test('버킷이 없으면(NotFound) 새로 만든다', async () => {
+    const client = fakeClient(async (cmd) => {
+      if (cmd instanceof HeadBucketCommand) {
+        const err = new Error('not found');
+        err.name = 'NotFound';
+        throw err;
+      }
+      return {};
+    });
+    const { ensureBucket } = createStorage(env, client);
+
+    await ensureBucket();
+
+    const sentCreate = client.send.mock.calls
+      .some(([cmd]) => cmd instanceof CreateBucketCommand);
+    expect(sentCreate).toBe(true);
+  });
+
+  test('버킷 없음이 아닌 다른 오류(자격 증명 등)는 그대로 전파하고 버킷을 만들지 않는다', async () => {
+    const client = fakeClient(async (cmd) => {
+      if (cmd instanceof HeadBucketCommand) {
+        const err = new Error('credentials missing');
+        err.name = 'CredentialsProviderError';
+        throw err;
+      }
+      return {};
+    });
+    const { ensureBucket } = createStorage(env, client);
+
+    await expect(ensureBucket()).rejects.toThrow('credentials missing');
+
+    const sentCreate = client.send.mock.calls
+      .some(([cmd]) => cmd instanceof CreateBucketCommand);
+    expect(sentCreate).toBe(false);
   });
 });
