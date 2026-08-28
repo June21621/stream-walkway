@@ -95,4 +95,35 @@ describe('pipeline.js - runCapture', () => {
     expect(last.status).toBe('failed');
     expect(last.error).toMatch(/publish failed/);
   });
+
+  test('실패 기록(마지막 jobs.update)이 거부돼도 던지지 않는다', async () => {
+    const update = jest.fn()
+      .mockResolvedValueOnce(undefined) // processing 기록은 성공
+      .mockRejectedValueOnce(new Error('redis down')); // failed 기록은 실패
+    const { deps } = makeDeps({
+      capture: jest.fn().mockRejectedValue(new Error('capture failed: boom')),
+      jobs: { update },
+    });
+
+    await expect(createPipeline(deps).runCapture(JOB)).resolves.toBeUndefined();
+  });
+
+  test('맨 처음 processing 기록이 거부돼도 던지지 않는다', async () => {
+    const { deps } = makeDeps({
+      jobs: { update: jest.fn().mockRejectedValue(new Error('redis down')) },
+    });
+
+    await expect(createPipeline(deps).runCapture(JOB)).resolves.toBeUndefined();
+  });
+
+  test('capture가 Error가 아닌 값을 던져도 error는 capture failed로 시작한다', async () => {
+    const { deps, updates } = makeDeps({
+      capture: jest.fn().mockRejectedValue('boom'),
+    });
+    await createPipeline(deps).runCapture(JOB);
+
+    const last = updates[updates.length - 1];
+    expect(last.status).toBe('failed');
+    expect(last.error).toMatch(/^capture failed:/);
+  });
 });
