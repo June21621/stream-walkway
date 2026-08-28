@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, HeadBucketCommand, CreateBucketCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, HeadBucketCommand, CreateBucketCommand, PutBucketPolicyCommand } = require('@aws-sdk/client-s3');
 
 // captures/{streamId}/{trailId}/{ISO8601}.jpg
 //
@@ -47,6 +47,24 @@ function createStorage(env = process.env, client = null) {
       }
       await client.send(new CreateBucketCommand({ Bucket: bucket }));
     }
+
+    // 캡처 이미지는 공공 CCTV 화면이라 민감도가 낮고, 프론트엔드가 정적
+    // 페이지라 서버를 거치지 않고 브라우저가 image_path로 직접 URL을
+    // 조립해 받아온다 - 그래서 버킷을 공개 읽기로 열어야 한다(설계 문서
+    // "MinIO 구성" 참고). 매 기동마다 다시 걸어도 멱등이라 부작용이 없고,
+    // "버킷을 새로 만들 때만 걸기"보다 코드가 짧다.
+    await client.send(new PutBucketPolicyCommand({
+      Bucket: bucket,
+      Policy: JSON.stringify({
+        Version: '2012-10-17',
+        Statement: [{
+          Effect: 'Allow',
+          Principal: '*',
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::${bucket}/*`],
+        }],
+      }),
+    }));
   }
 
   async function upload(key, buffer) {

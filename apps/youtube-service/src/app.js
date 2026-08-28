@@ -26,12 +26,20 @@ function createApp({ jobs, runCapture }) {
       }
     }
 
-    const job = await jobs.create({
-      jobId: crypto.randomUUID(),
-      stream_id: req.body.stream_id,
-      trail_id: req.body.trail_id,
-      youtube_url: req.body.youtube_url,
-    });
+    // jobs.create가 던지면(Redis 다운 등) Express 4는 이 프로미스를 지켜보지
+    // 않는다 - 잡지 않은 거부는 Node 20에서 프로세스를 죽인다. try/catch로 막는다.
+    let job;
+    try {
+      job = await jobs.create({
+        jobId: crypto.randomUUID(),
+        stream_id: req.body.stream_id,
+        trail_id: req.body.trail_id,
+        youtube_url: req.body.youtube_url,
+      });
+    } catch (err) {
+      console.error('[youtube-service] 작업 생성 실패:', err.message);
+      return res.status(500).json({ error: 'failed to create job' });
+    }
 
     // 응답을 먼저 보내고 캡처는 뒤에서 돈다. runCapture는 던지지 않도록
     // 만들어져 있지만, 혹시 모를 동기 예외까지 여기서 막는다.
@@ -54,7 +62,13 @@ function createApp({ jobs, runCapture }) {
   // GET /status/:jobId
   // ─────────────────────────────────────────
   app.get('/status/:jobId', async (req, res) => {
-    const job = await jobs.get(req.params.jobId);
+    let job;
+    try {
+      job = await jobs.get(req.params.jobId);
+    } catch (err) {
+      console.error('[youtube-service] 작업 조회 실패:', err.message);
+      return res.status(500).json({ error: 'failed to fetch job' });
+    }
     if (!job) {
       return res.status(404).json({ error: 'Job not found', jobId: req.params.jobId });
     }

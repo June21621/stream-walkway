@@ -130,6 +130,26 @@ describe('YouTube Service API', () => {
       // then
       expect(res.status).toBe(400);
     });
+
+    test('jobs.create가 거부되어도 프로세스를 죽이지 않고 500을 반환한다', async () => {
+      // given - Redis 다운 등으로 jobs.create가 reject되는 상황을 흉내낸다.
+      const jobs = {
+        create: jest.fn().mockRejectedValue(new Error('redis down')),
+        get: jest.fn(),
+      };
+      const runCapture = jest.fn();
+      const app = createApp({ jobs, runCapture });
+
+      // when
+      const res = await request(app)
+        .post('/download')
+        .send({ stream_id: 1, trail_id: 1, youtube_url: 'https://www.youtube.com/watch?v=example' })
+        .set('Content-Type', 'application/json');
+
+      // then - unhandled rejection으로 프로세스가 죽었다면 이 응답 자체가 오지 않는다.
+      expect(res.status).toBe(500);
+      expect(runCapture).not.toHaveBeenCalled();
+    });
   });
 
   // ─────────────────────────────────────────
@@ -207,6 +227,21 @@ describe('YouTube Service API', () => {
 
       // then
       expect(res.status).toBe(404);
+    });
+
+    test('jobs.get이 거부되어도 프로세스를 죽이지 않고 500을 반환한다', async () => {
+      // given - 저장된 값이 깨져 JSON.parse가 던지는 경우 등을 흉내낸다.
+      const jobs = {
+        create: jest.fn(),
+        get: jest.fn().mockRejectedValue(new Error('corrupt value')),
+      };
+      const app = createApp({ jobs, runCapture: jest.fn() });
+
+      // when
+      const res = await request(app).get('/status/some-job-id');
+
+      // then
+      expect(res.status).toBe(500);
     });
   });
 

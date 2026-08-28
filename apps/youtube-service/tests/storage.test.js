@@ -1,4 +1,4 @@
-const { HeadBucketCommand, CreateBucketCommand } = require('@aws-sdk/client-s3');
+const { HeadBucketCommand, CreateBucketCommand, PutBucketPolicyCommand } = require('@aws-sdk/client-s3');
 const { buildKey, createStorage } = require('../src/storage');
 
 // 진짜 MinIO 없이 send()만 흉내내는 가짜 클라이언트.
@@ -60,6 +60,25 @@ describe('storage.js - ensureBucket', () => {
     const sentCreate = client.send.mock.calls
       .some(([cmd]) => cmd instanceof CreateBucketCommand);
     expect(sentCreate).toBe(true);
+  });
+
+  test('버킷을 익명 읽기(s3:GetObject)로 여는 정책을 적용한다', async () => {
+    const client = fakeClient(async () => ({}));
+    const { ensureBucket } = createStorage(env, client);
+
+    await ensureBucket();
+
+    const policyCall = client.send.mock.calls
+      .find(([cmd]) => cmd instanceof PutBucketPolicyCommand);
+    expect(policyCall).toBeDefined();
+    const [cmd] = policyCall;
+    expect(cmd.input.Bucket).toBe('captures');
+    const policy = JSON.parse(cmd.input.Policy);
+    expect(policy.Statement[0]).toMatchObject({
+      Effect: 'Allow',
+      Action: ['s3:GetObject'],
+      Resource: ['arn:aws:s3:::captures/*'],
+    });
   });
 
   test('버킷 없음이 아닌 다른 오류(자격 증명 등)는 그대로 전파하고 버킷을 만들지 않는다', async () => {

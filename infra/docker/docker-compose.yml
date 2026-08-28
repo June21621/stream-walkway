@@ -143,6 +143,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET:-captures}
       CAPTURE_SOURCE: ${CAPTURE_SOURCE:-testsrc}
+      CAPTURE_FILE_PATH: ${CAPTURE_FILE_PATH:-}
     depends_on:
       kafka:
         condition: service_healthy
