@@ -1,56 +1,90 @@
 const express = require('express');
+const crypto = require('crypto');
 
-const app = express();
-app.use(express.json());
+const REQUIRED_FIELDS = ['stream_id', 'trail_id', 'youtube_url'];
 
-// 진행 중인 job 상태를 메모리에 저장 (추후 Redis 등으로 대체)
-const jobStore = new Map();
+// 의존성을 주입받는다. app.js가 capture/storage/kafka를 직접 require하면
+// 테스트가 진짜 ffmpeg를 띄우고 브로커에 붙으려 한다.
+function createApp({ jobs, runCapture }) {
+  const app = express();
+  app.use(express.json());
 
-// ─────────────────────────────────────────
-// Health Check
-// ─────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'youtube-service' });
-});
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'youtube-service' });
+  });
 
-// ─────────────────────────────────────────
-// POST /download
-// YouTube URL을 받아 이미지 다운로드 작업을 시작한다.
-// 완료 시 Kafka [image.downloaded] 이벤트를 발행한다.
-// ─────────────────────────────────────────
-app.post('/download', async (req, res) => {
-  // TODO: 구현 필요 (TDD - RED 단계)
-  throw new Error('Not implemented');
-});
+  // ─────────────────────────────────────────
+  // POST /download — 지금 한 장 뜬다.
+  //
+  // "15분마다"를 세는 것은 스케줄러의 일이라 interval_sec을 받지 않는다.
+  // 요청 본문에 있어도 무시하고 응답에도 넣지 않는다.
+  // ─────────────────────────────────────────
+  app.post('/download', async (req, res) => {
+    for (const field of REQUIRED_FIELDS) {
+      if (req.body[field] === undefined || req.body[field] === null) {
+        return res.status(400).json({ error: `${field} is required` });
+      }
+    }
 
-// ─────────────────────────────────────────
-// GET /status/:jobId
-// 다운로드 작업의 현재 진행 상태를 반환한다.
-// ─────────────────────────────────────────
-app.get('/status/:jobId', (req, res) => {
-  // TODO: 구현 필요 (TDD - RED 단계)
-  throw new Error('Not implemented');
-});
+    // jobs.create가 던지면(Redis 다운 등) Express 4는 이 프로미스를 지켜보지
+    // 않는다 - 잡지 않은 거부는 Node 20에서 프로세스를 죽인다. try/catch로 막는다.
+    let job;
+    try {
+      job = await jobs.create({
+        jobId: crypto.randomUUID(),
+        stream_id: req.body.stream_id,
+        trail_id: req.body.trail_id,
+        youtube_url: req.body.youtube_url,
+      });
+    } catch (err) {
+      console.error('[youtube-service] 작업 생성 실패:', err.message);
+      return res.status(500).json({ error: 'failed to create job' });
+    }
 
-// ─────────────────────────────────────────
-// 테스트용 메시지 발행 엔드포인트 (기존)
-// ─────────────────────────────────────────
-app.post('/test/publish', async (req, res) => {
-  try {
-    const { publishMessage } = require('./kafka');
-    const message = {
-      imageId: 'test-001',
-      streamId: 1,
-      trailId: 1,
-      imagePath: '/images/test-001.jpg',
-      timestamp: new Date().toISOString(),
+    // 응답을 먼저 보내고 캡처는 뒤에서 돈다. runCapture는 던지지 않도록
+    // 만들어져 있지만, 혹시 모를 동기 예외까지 여기서 막는다.
+    setImmediate(() => {
+      Promise.resolve()
+        .then(() => runCapture(job))
+        .catch((err) => console.error('[youtube-service] 캡처 실행 실패:', err.message));
+    });
+
+    res.status(202).json({
+      jobId: job.jobId,
+      status: job.status,
+      stream_id: job.stream_id,
+      trail_id: job.trail_id,
+      youtube_url: job.youtube_url,
+    });
+  });
+
+  // ─────────────────────────────────────────
+  // GET /status/:jobId
+  // ─────────────────────────────────────────
+  app.get('/status/:jobId', async (req, res) => {
+    let job;
+    try {
+      job = await jobs.get(req.params.jobId);
+    } catch (err) {
+      console.error('[youtube-service] 작업 조회 실패:', err.message);
+      return res.status(500).json({ error: 'failed to fetch job' });
+    }
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found', jobId: req.params.jobId });
+    }
+
+    const body = {
+      jobId: job.jobId,
+      status: job.status,
+      progress: job.progress,
+      downloaded_count: job.downloaded_count,
     };
-    await publishMessage('image.downloaded', message);
-    res.json({ status: 'ok', message: '메시지 발행 완료', published: message });
-  } catch (err) {
-    console.error('[youtube-service] 발행 실패:', err.message);
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
+    if (job.error) body.error = job.error;
 
-module.exports = { app, jobStore };
+    res.json(body);
+  });
+
+  return app;
+}
+
+module.exports = { createApp };

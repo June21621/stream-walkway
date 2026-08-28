@@ -12,7 +12,7 @@ stream-walkway/
 ├── apps/                      # 주요 애플리케이션 (엔드투엔드 단위)
 │   ├── frontend/              # Next.js 정적 사이트 (CDN 배포, 런타임 서버 없음)
 │   ├── backend/               # Spring Boot API Gateway 및 오케스트레이션
-│   ├── youtube-service/       # Node.js 기반 YouTube/영상 캡처 서비스
+│   ├── youtube-service/       # ffmpeg 기반 프레임 캡처 서비스 (MinIO 업로드)
 │   └── ml-service/            # Python/Node.js 기반 ML 분석 서비스
 ├── services/                  # 도메인 마이크로서비스 (CQRS 등)
 │   ├── writer/                # 쓰기 서비스 (명령 처리, PostgreSQL + Redis 업데이트)
@@ -36,6 +36,7 @@ stream-walkway/
 ### 데이터 저장소
 - PostgreSQL + PostGIS
 - Redis
+- MinIO (S3 호환 오브젝트 스토리지, 캡처 이미지 저장)
 
 ### 서비스
 - Spring Boot (Writer, Reader, Backend Gateway)

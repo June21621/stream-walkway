@@ -389,18 +389,16 @@ ml-service 28개가 전부 GREEN이 되어 RED 13개가 사라졌다. 전체는
 
 세 항목은 서로 독립적인 서브시스템이라 **계획을 하나로 묶지 않는다.** 각각 별도 계획 문서와 브랜치로 진행한다.
 
-### 다음: youtube-service RED 11개 (`feature/youtube-download`)
+### ~~그다음: youtube-service RED 11개~~ — 완료 (2026-08-28, 설계: `docs/superpowers/specs/2026-08-27-youtube-capture-design.md`)
 
-`POST /download`와 `GET /status/:jobId`가 스텁이다. 다만 이건 ml-service와 성격이 다르다 — **응답 형식을 맞추는 문제가 아니라 실제 영상 다운로드 로직이 아예 없다.** 계획을 쓰기 전에 결정할 것들이 있다.
+`POST /download`와 `GET /status/:jobId`가 스텁이었다. 다만 이건 ml-service와 성격이 다르다 — **응답 형식을 맞추는 문제가 아니라 실제 영상 다운로드 로직이 아예 없다.** 계획을 쓰기 전에 결정할 것들이 있었고, 브레인스토밍으로 다음과 같이 정리됐다(근거는 위 설계 문서 참고).
 
-- 다운로드 수단 (`yt-dlp` 등 새 의존성 필요, 이 저장소는 지금까지 새 의존성을 하나도 안 늘렸다)
-- 저장 위치와 볼륨 (compose에 이미지 저장용 볼륨이 없다)
-- `interval_sec`으로 프레임을 뽑는 방식 (ffmpeg 필요 여부)
-- `jobStore`가 지금은 프로세스 메모리의 `Map`이다. 컨테이너 재시작 시 사라진다 — Redis로 옮길지
+- **다운로드 수단** — `yt-dlp`는 도입하지 않는다. YouTube에서 프레임을 추출하는 것은 이용약관 위반이라 YouTube 어댑터 자체를 만들지 않기로 했다. 대신 ffmpeg로 `CAPTURE_SOURCE`(`testsrc`/`file`/`hls`)를 캡처한다
+- **저장 위치** — MinIO(S3 호환 오브젝트 스토리지)에 `captures/{streamId}/{trailId}/{ISO8601}.jpg` 키로 업로드한다. compose에 MinIO 서비스와 볼륨을 추가했다
+- **`interval_sec`** — 받지 않기로 했다. "몇 분마다"는 스케줄러(오케스트레이션)의 관심사이고, `POST /download`는 "지금 한 장 떠라"는 단발 작업이다
+- **`jobStore`** — 프로세스 메모리 `Map`에서 Redis(TTL 1시간)로 옮겼다. 컨테이너 재시작에도 살아남고 정리 로직을 따로 둘 필요가 없다
 
-이미 해소된 선행 조건: `index.js`가 `app.js`를 재사용하도록 고쳐서, `app.js`의 스텁을 구현하면 실서버에 반영된다 (커밋 `782859f`).
-
-**이 항목은 brainstorming부터 시작해야 한다.** 테스트가 명세 역할을 하는 ml-service와 달리 설계 결정이 여럿 남아 있다.
+이미 해소됐던 선행 조건: `index.js`가 `app.js`를 재사용하도록 고쳐서, `app.js`의 스텁을 구현하면 실서버에 반영된다 (커밋 `782859f`).
 
 ### ~~그다음: backend Capture RED 5개~~ — 완료 (2026-08-27, main 머지 `622fb75`)
 
@@ -426,3 +424,5 @@ reader가 제공하는 것은 `GET /captures`(전체)와 `GET /captures/trail/{t
 **2026-08-27 갱신:** 이 계획을 쓴 뒤 backend Capture 조회 경로가 먼저 완료됐다(계획: `2026-08-27-capture-read-path.md`, main 머지 `622fb75`). 그 작업이 shared/reader/backend에 테스트 16개를 더해 전체가 235 → 251로 늘었고 backend RED 5개가 사라졌다. 위 표의 기준선을 그에 맞춰 고쳤다.
 
 youtube-service까지 끝내면 남는 RED 2개는 `ReaderApplicationTests`/`WriterApplicationTests`의 `contextLoads`다. 테스트 프로파일에 JDBC URL이 없어서 나는 설정 문제이며 기능 구현과 무관하므로 별도로 처리한다. youtube-service 작업은 새 테스트가 붙을 가능성이 높아 전체 개수가 251보다 늘어날 수 있다.
+
+**2026-08-28 실측:** 예상대로 새 테스트가 붙어 youtube-service는 11개가 아니라 47개(전부 GREEN, capture/storage/jobs/pipeline 테스트 파일 신설)가 됐다. 저장소 전체는 276개 중 GREEN 274 / RED 2(위에서 말한 contextLoads 2개뿐)다. 실측값과 갱신 근거는 `docs/tdd-test-plan.md`를 참고.

@@ -8,7 +8,7 @@ MSA 기반 하천 산책로 정보 분석 시스템
 
 ### 주요 기능
 
-- YouTube 영상에서 하천 산책로 이미지 자동 다운로드
+- 영상 스트림에서 하천 산책로 이미지 자동 캡처 (ffmpeg 기반, YouTube 직접 다운로드는 이용약관 문제로 지원하지 않음)
 - ML 모델을 활용한 하천 산책로 정보 자동 추출
 - CQRS 패턴 기반 데이터 읽기/쓰기 분리
 - Apache Kafka (KRaft)를 통한 이벤트 기반 비동기 처리
@@ -21,7 +21,7 @@ stream-walkway/
 ├── apps/                      # 주요 애플리케이션
 │   ├── frontend/             # Next.js 정적 사이트 (out/ 을 CDN에 배포, 런타임 서버 없음)
 │   ├── backend/              # Spring Boot API Gateway 및 오케스트레이션
-│   ├── youtube-service/      # Node.js 이미지 다운로더
+│   ├── youtube-service/      # ffmpeg 기반 프레임 캡처 서비스 (MinIO 업로드)
 │   └── ml-service/           # Python/Node.js ML 분석 서비스
 ├── services/                  # 마이크로서비스
 │   ├── writer/               # 쓰기 서비스 (PostgreSQL + Redis 업데이트)
@@ -57,6 +57,7 @@ stream-walkway/
 - PostgreSQL (장기 데이터 저장)
 - Redis (빠른 읽기 캐싱)
 - Apache Kafka (KRaft, apache/kafka:3.9.0) (이벤트 메시징)
+- MinIO (S3 호환 오브젝트 스토리지)
 - Docker & Kubernetes
 
 저장소 루트의 `pom.xml`은 `packages/shared`, `services/reader`, `services/writer`를 모듈로 묶은 Maven 애그리게이터입니다. 루트에서 `mvn install`을 한 번 실행하면 Maven 리액터가 의존 관계를 감지해 `shared`를 먼저 빌드/설치한 뒤 이를 참조하는 `reader`/`writer`를 빌드합니다.
@@ -73,9 +74,9 @@ stream-walkway/
 ### 데이터 흐름
 
 ```
-Frontend → Backend (Gateway) → YouTube Service → 이미지 다운로드
+Frontend → Backend (Gateway) → YouTube Service → ffmpeg 프레임 캡처 → MinIO
                               ↓
-                         Kafka (이벤트 발행)
+                         Kafka (image.downloaded)
                               ↓
                     ML Service (병렬 처리)
                               ↓
@@ -102,7 +103,7 @@ Frontend → Backend (Gateway) → YouTube Service → 이미지 다운로드
 git clone https://github.com/June21621/stream-walkway.git
 cd stream-walkway
 
-# 인프라 서비스 시작 (PostgreSQL, Redis, Kafka)
+# 인프라 서비스 시작 (PostgreSQL, Redis, Kafka, MinIO)
 cd infra/docker
 docker-compose up -d
 

@@ -1,5 +1,28 @@
 const request = require('supertest');
-const { app } = require('../src/app');
+const { createApp } = require('../src/app');
+
+// 캡처 실행부를 가짜로 주입한다. 진짜 ffmpeg를 띄우지 않는다.
+// runCapture는 파이프라인이 그렇듯 던지지 않고 조용히 끝난다.
+function buildApp() {
+  const store = new Map();
+  const jobs = {
+    create: jest.fn(async (job) => {
+      const record = { status: 'queued', progress: 0, downloaded_count: 0, ...job };
+      store.set(record.jobId, record);
+      return record;
+    }),
+    get: jest.fn(async (jobId) => store.get(jobId) || null),
+    update: jest.fn(async (jobId, patch) => {
+      const cur = store.get(jobId);
+      if (!cur) return null;
+      const merged = { ...cur, ...patch };
+      store.set(jobId, merged);
+      return merged;
+    }),
+  };
+  const runCapture = jest.fn().mockResolvedValue(undefined);
+  return { app: createApp({ jobs, runCapture }), jobs, runCapture };
+}
 
 // ─────────────────────────────────────────
 // YouTube Service API 테스트
@@ -15,11 +38,11 @@ describe('YouTube Service API', () => {
 
     test('유효한 요청으로 다운로드 작업을 시작하면 202 Accepted를 반환한다', async () => {
       // given
+      const { app } = buildApp();
       const body = {
         stream_id: 1,
         trail_id: 1,
         youtube_url: 'https://www.youtube.com/watch?v=example',
-        interval_sec: 5,
       };
 
       // when
@@ -39,11 +62,11 @@ describe('YouTube Service API', () => {
 
     test('jobId는 고유한 문자열이다', async () => {
       // given
+      const { app } = buildApp();
       const body = {
         stream_id: 1,
         trail_id: 1,
         youtube_url: 'https://www.youtube.com/watch?v=example',
-        interval_sec: 5,
       };
 
       // when
@@ -56,6 +79,7 @@ describe('YouTube Service API', () => {
 
     test('stream_id가 없으면 400 Bad Request를 반환한다', async () => {
       // given
+      const { app } = buildApp();
       const body = {
         trail_id: 1,
         youtube_url: 'https://www.youtube.com/watch?v=example',
@@ -73,6 +97,7 @@ describe('YouTube Service API', () => {
 
     test('trail_id가 없으면 400 Bad Request를 반환한다', async () => {
       // given
+      const { app } = buildApp();
       const body = {
         stream_id: 1,
         youtube_url: 'https://www.youtube.com/watch?v=example',
@@ -90,6 +115,7 @@ describe('YouTube Service API', () => {
 
     test('youtube_url이 없으면 400 Bad Request를 반환한다', async () => {
       // given
+      const { app } = buildApp();
       const body = {
         stream_id: 1,
         trail_id: 1,
@@ -104,6 +130,26 @@ describe('YouTube Service API', () => {
       // then
       expect(res.status).toBe(400);
     });
+
+    test('jobs.create가 거부되어도 프로세스를 죽이지 않고 500을 반환한다', async () => {
+      // given - Redis 다운 등으로 jobs.create가 reject되는 상황을 흉내낸다.
+      const jobs = {
+        create: jest.fn().mockRejectedValue(new Error('redis down')),
+        get: jest.fn(),
+      };
+      const runCapture = jest.fn();
+      const app = createApp({ jobs, runCapture });
+
+      // when
+      const res = await request(app)
+        .post('/download')
+        .send({ stream_id: 1, trail_id: 1, youtube_url: 'https://www.youtube.com/watch?v=example' })
+        .set('Content-Type', 'application/json');
+
+      // then - unhandled rejection으로 프로세스가 죽었다면 이 응답 자체가 오지 않는다.
+      expect(res.status).toBe(500);
+      expect(runCapture).not.toHaveBeenCalled();
+    });
   });
 
   // ─────────────────────────────────────────
@@ -113,13 +159,13 @@ describe('YouTube Service API', () => {
 
     test('등록된 jobId의 상태를 200 OK로 반환한다', async () => {
       // given - 먼저 작업을 등록한다
+      const { app } = buildApp();
       const downloadRes = await request(app)
         .post('/download')
         .send({
           stream_id: 1,
           trail_id: 1,
           youtube_url: 'https://www.youtube.com/watch?v=example',
-          interval_sec: 5,
         });
       const { jobId } = downloadRes.body;
 
@@ -136,13 +182,13 @@ describe('YouTube Service API', () => {
 
     test('status는 queued | processing | completed 중 하나이다', async () => {
       // given
+      const { app } = buildApp();
       const downloadRes = await request(app)
         .post('/download')
         .send({
           stream_id: 1,
           trail_id: 1,
           youtube_url: 'https://www.youtube.com/watch?v=example',
-          interval_sec: 5,
         });
       const { jobId } = downloadRes.body;
 
@@ -150,19 +196,19 @@ describe('YouTube Service API', () => {
       const res = await request(app).get(`/status/${jobId}`);
 
       // then
-      const validStatuses = ['queued', 'processing', 'completed'];
+      const validStatuses = ['queued', 'processing', 'completed', 'failed'];
       expect(validStatuses).toContain(res.body.status);
     });
 
     test('progress는 0~100 사이의 숫자이다', async () => {
       // given
+      const { app } = buildApp();
       const downloadRes = await request(app)
         .post('/download')
         .send({
           stream_id: 1,
           trail_id: 1,
           youtube_url: 'https://www.youtube.com/watch?v=example',
-          interval_sec: 5,
         });
       const { jobId } = downloadRes.body;
 
@@ -176,10 +222,26 @@ describe('YouTube Service API', () => {
 
     test('존재하지 않는 jobId는 404 Not Found를 반환한다', async () => {
       // when
+      const { app } = buildApp();
       const res = await request(app).get('/status/nonexistent-job-id');
 
       // then
       expect(res.status).toBe(404);
+    });
+
+    test('jobs.get이 거부되어도 프로세스를 죽이지 않고 500을 반환한다', async () => {
+      // given - 저장된 값이 깨져 JSON.parse가 던지는 경우 등을 흉내낸다.
+      const jobs = {
+        create: jest.fn(),
+        get: jest.fn().mockRejectedValue(new Error('corrupt value')),
+      };
+      const app = createApp({ jobs, runCapture: jest.fn() });
+
+      // when
+      const res = await request(app).get('/status/some-job-id');
+
+      // then
+      expect(res.status).toBe(500);
     });
   });
 
@@ -189,6 +251,7 @@ describe('YouTube Service API', () => {
   describe('GET /health', () => {
 
     test('서비스가 정상 상태이면 200 OK를 반환한다', async () => {
+      const { app } = buildApp();
       const res = await request(app).get('/health');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
