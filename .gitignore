@@ -37,3 +37,6 @@ infra/.env.local
 # Docker
 .docker/
 docker-compose.override.yml
+
+# SDD 작업용 스크래치 (원장, 브리프, 리뷰 패키지)
+.superpowers/

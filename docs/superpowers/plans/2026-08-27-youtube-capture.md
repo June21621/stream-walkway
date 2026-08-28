@@ -905,7 +905,18 @@ function buildApp() {
 }
 ```
 
-각 테스트의 `request(app)`을 `request(buildApp().app)`으로 바꾼다. 상태를 이어봐야 하는 테스트(POST 후 GET)는 `const { app } = buildApp();`을 한 번 만들어 두 요청에 같이 쓴다.
+**각 `test()` 안에서 `buildApp()`을 정확히 한 번만 부르고, 그 `app`을 그 테스트의 모든 요청에 쓴다** (사전 점검 R3 판정).
+
+```js
+test('...', async () => {
+  const { app } = buildApp();          // 테스트당 한 번
+  const res1 = await request(app).post('/download').send({...});
+  const res2 = await request(app).get(`/status/${res1.body.jobId}`);
+  ...
+});
+```
+
+테스트마다 새 앱과 새 저장소를 만들어 격리는 유지하면서, 테스트 내부의 POST→GET 상태 연속성은 보장된다. `beforeEach`로 공유하면 격리가 깨지고, 요청마다 새로 만들면 `GET /status`가 404를 낸다.
 
 **셋째, `validStatuses`에 `'failed'`를 추가한다.**
 
@@ -913,7 +924,15 @@ function buildApp() {
 const validStatuses = ['queued', 'processing', 'completed', 'failed'];
 ```
 
-`tests/kafka.test.js`에서는 `interval_sec: 5,` 2곳만 지운다.
+`tests/kafka.test.js`에서는 **`[RED] POST /download → Kafka 발행 연동` describe 블록 전체를 삭제한다**(파일 끝의 140~183행 근처). 그 안에 있던 `interval_sec: 5,` 2곳도 함께 사라진다.
+
+**삭제하는 이유 (사전 점검 R1 판정):** 그 두 테스트는 세 가지 이유로 이 설계와 맞지 않는다.
+
+1. `const { app } = require('../src/app')` — 이 태스크가 `app` 단일 export를 없애고 `createApp` 팩토리로 바꾸므로 깨진다
+2. 발행 메시지를 `{stream_id, trail_id, youtube_url}`(snake_case)로 단언하는데, 스펙은 Kafka 메시지를 `{imageId, streamId, trailId, imagePath, timestamp}`(camelCase)로 유지하기로 했다. **실제 컨슈머인 ml-service `consume()`이 `data.get("imageId")`를 읽으므로 snake_case를 기대하는 이 단언이 틀렸다**
+3. `await request(app).post('/download')` 직후에 발행을 단언하는데, 설계상 캡처는 202 응답 **이후** 비동기로 돈다. 이 시점에는 아직 발행되지 않았다. 고쳐 살리려면 폴링이나 타이머에 의존해야 하고 그런 테스트는 흔들린다
+
+발행 계약은 **Task 4의 `pipeline.test.js`가 더 정확히 덮는다** — 토픽, `imagePath`가 업로드한 키와 같은지, `imageId`/`streamId`/`trailId`/`timestamp`까지 `await`로 확실히 단언한다. 중복이 아니라 대체다.
 
 - [ ] **Step 2: 실패를 확인한다**
 
@@ -1050,7 +1069,7 @@ start();
 - [ ] **Step 5: 통과를 확인한다**
 
 Run: `npm test`
-Expected: 전체 통과. 기존 22개 + Task 1~4의 신규 테스트(4 + 4 + 6 + 7 = 21). **`/test/publish` 관련 테스트가 `kafka.test.js`에 있으면 함께 지운다.**
+Expected: 전체 통과. 기존 22개에서 kafka.test.js의 RED 2개를 뺀 20개 + Task 1~4의 신규 테스트(4 + 4 + 6 + 7 = 21) = **41개 전부 GREEN**. 실제 개수가 다르면 그 값을 그대로 기록한다.
 
 - [ ] **Step 6: 커밋**
 
