@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import NaverMap from '@/components/NaverMap';
 import { getStream, getStreams, getTrails } from '@/lib/api';
 
 export async function generateStaticParams() {
@@ -31,10 +32,23 @@ export default async function StreamDetail({
       </dl>
 
       <h2>카메라 관측 지점 ({trails.length})</h2>
+
+      <NaverMap
+        items={[
+          { id: stream.id, label: stream.name, wkt: stream.location, href: `/streams/${stream.id}/` },
+          ...trails.map((t) => ({
+            id: t.id,
+            label: t.camera_number,
+            wkt: t.location,
+            href: `/trails/${t.id}/`,
+          })),
+        ]}
+      />
+
       {trails.length === 0 ? (
         <p className="empty">등록된 관측 지점이 없습니다.</p>
       ) : (
-        <ul className="cards">
+        <ul className="cards" style={{ marginTop: '1.5rem' }}>
           {trails.map((t) => (
             <li key={t.id}>
               <Link href={`/trails/${t.id}/`}>

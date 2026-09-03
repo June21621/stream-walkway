@@ -76,6 +76,7 @@ S3/CloudFront가 `/trails/123` → `/trails/123.html` 매핑을 해주지 않기
 |---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | 백엔드 게이트웨이 주소 |
 | `NEXT_PUBLIC_IMAGE_BASE_URL` | 캡처 이미지 base URL. **버킷 이름까지 포함시킨다** |
+| `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` | 네이버 지도 Client ID. 비워두면 지도 자리에 안내 문구가 뜬다 |
 
 `.env.local.example`을 `.env.local`로 복사해서 쓴다.
 
@@ -143,8 +144,8 @@ python -m http.server 4000 --directory out
 
 | 경로 | 내용 |
 |---|---|
-| `/` | 하천 목록 |
-| `/streams/[id]` | 하천 상세 + 그 하천의 카메라 관측 지점 목록 |
+| `/` | 지도(하천 선택) + 하천 목록 |
+| `/streams/[id]` | 하천 상세 + 지도(관측 지점 마커) + 관측 지점 목록 |
 | `/trails/[id]` | 관측 지점 상세 + 캡처 이미지 |
 
 뒤의 둘은 `generateStaticParams` 로 빌드 타임에 전체 경로를 생성한다.
@@ -157,8 +158,6 @@ python -m http.server 4000 --directory out
 - **`road_status` 는 항상 `"양호"`, `confidence` 는 항상 `0.95`** — ml-service에 실제 모델이 없다
 - **Trail 에 `name` 이 없다.** writer는 `name` 을 검증하는데 `TrailView`/게이트웨이 응답에는
   없어서 화면에는 `camera_number` 를 쓴다. 백엔드 쪽 갭
-- 지도는 아직 없다. 네이버 지도로 붙일 예정이며 `location` 의 WKT 파싱이 필요하다
-  (WKT는 `(경도 위도)`, 네이버는 `(위도, 경도)` 순서라 뒤집힌다)
 
 빌드 결과를 실제 정적 호스트처럼 띄워 보려면:
 
@@ -184,3 +183,37 @@ Next가 이를 찾지 못하고 "TypeScript가 없다"고 판단해 **빌드 도
 로컬에서는 멀쩡해 보이고 깨끗한 CI 환경에서만 실패한다.
 
 16.3.3에서는 호이스팅된 `typescript`를 정상적으로 찾아 재설치가 일어나지 않는다.
+
+---
+
+## 지도 (네이버)
+
+지도를 하천 선택의 입구로 쓴다. `/` 상단에 지도, 아래에 하천 목록을 같이 둔다.
+
+**목록을 함께 두는 건 중복이 아니라 폴백이다.** 지도는 외부 스크립트·API 키·도메인
+화이트리스트에 의존해서 깨질 수 있는데, 목록은 서버 렌더라 정적 HTML에 남는다.
+지도가 안 떠도 하천 선택은 되고, 크롤러도 하천 이름을 읽는다.
+
+### 키 발급
+
+NCP 콘솔 → Maps → Application 등록 → **Web Dynamic Map** 활성화 → Client ID.
+
+**서비스 URL(도메인)을 반드시 등록할 것.** 등록 안 된 도메인에서는 인증 실패로
+지도가 뜨지 않는다. 최소 `http://localhost:3000`(dev), `http://localhost:4000`(preview),
+그리고 배포 도메인.
+
+키는 `NEXT_PUBLIC_` 이라 빌드 시 번들에 박히고 브라우저에서 보인다.
+이게 웹 지도 API의 정상 사용법이며, **도메인 화이트리스트가 유일한 보호막**이다.
+
+> 지도가 인증 오류로 안 뜨면 `components/NaverMap.tsx` 의 `KEY_PARAM` 을 확인할 것.
+> 스크립트 쿼리 파라미터가 예전 `ncpClientId` 에서 NCP 이관 후 `ncpKeyId` 로 바뀌었다.
+> 콘솔이 주는 예제 스니펫이 항상 최신이다.
+
+### 좌표 순서
+
+**WKT는 `(경도 위도)`, 네이버는 `LatLng(위도, 경도)` 로 순서가 뒤집힌다.**
+여기가 실수 나는 지점이라 `lib/wkt.ts` 에 테스트를 붙여뒀다.
+
+`parseWkt()` 는 `POINT EMPTY` / `LINESTRING EMPTY` 를 예외 대신 빈 배열로 준다.
+빌드 타임에 그리는 화면이라 예외를 던지면 빌드 전체가 깨진다 —
+한 행을 못 그리는 것과 배포가 막히는 건 다르다.

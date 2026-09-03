@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "preview": "npx serve@latest out",
-    "test": "node --test src/lib/api.test.mts"
+    "test": "node --test src/lib/api.test.mts src/lib/wkt.test.mts"
   },
   "dependencies": {
     "next": "^16.3.3",
