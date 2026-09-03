@@ -1,0 +1,39 @@
+:root { color-scheme: light dark; }
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  max-width: 60rem;
+  margin-inline: auto;
+}
+
+a { color: inherit; }
+
+h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.15rem; margin-top: 2rem; }
+
+nav { margin-bottom: 1.5rem; font-size: 0.875rem; opacity: 0.7; }
+
+ul.cards { list-style: none; padding: 0; display: grid; gap: 0.5rem; }
+
+ul.cards li a {
+  display: block;
+  padding: 0.75rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+dt { opacity: 0.6; }
+dd { margin: 0; }
+
+code { font-size: 0.875em; word-break: break-all; }
+
+.captures { list-style: none; padding: 0; display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.captures img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; }
+.captures figcaption { font-size: 0.875rem; opacity: 0.75; }
+
+.empty { opacity: 0.6; font-style: italic; }

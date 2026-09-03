@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview": "npx serve@latest out"
+    "preview": "npx serve@latest out",
+    "test": "node --test src/lib/api.test.mts"
   },
   "dependencies": {
     "next": "^16.3.3",
