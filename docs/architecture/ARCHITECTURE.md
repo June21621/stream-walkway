@@ -43,3 +43,23 @@ stream-walkway/
 - Node.js (YouTube Service)
 - Python/FastAPI (ML Service)
 ```
+
+## 내부 API 인증
+
+쓰기 경로에는 공유 비밀 `X-Internal-Key`가 걸려 있다. 값은 두 서비스가 같은
+`INTERNAL_API_KEY` 환경변수에서 읽는다.
+
+- `apps/backend`의 쓰기 엔드포인트(`POST /api/streams`, `POST /api/trails`,
+  `POST /api/captures/jobs`)가 헤더를 검사한다
+- `services/writer`의 `/internal/**` 전체를 `InternalKeyFilter`가 다시 검사한다
+
+**두 겹인 이유:** writer의 포트가 compose에서 호스트로 열려 있어
+(`${WRITER_PORT:-8002}:8080`) 게이트웨이를 건너뛰고 직접 쓸 수 있다. 게이트웨이에만
+검사를 두면 우회로가 열린 채로 남는다. 필터는 컨트롤러 바깥에 있으므로 앞으로
+추가되는 `/internal/**` 엔드포인트도 자동으로 덮인다.
+
+reader에는 걸지 않는다. 조회는 공개 API이고 게이트웨이도 GET에는 키를 요구하지 않는다.
+
+**한계:** 단일 공유 비밀이고 기본값이 `dev-internal-key-change-me`다. 운영에서는
+`.env`의 `INTERNAL_API_KEY`를 반드시 바꿔야 하며, 그 자체가 인증·인가 체계를
+대신하지는 못한다. 서비스 계정이나 mTLS로 가는 것은 별개 작업이다.

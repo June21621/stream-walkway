@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(TrailController.class)
+@TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("Writer - TrailController(내부 전용) 테스트")
 class TrailControllerTest {
 
@@ -65,6 +67,7 @@ class TrailControllerTest {
         // when & then
         mockMvc.perform(post("/internal/trails")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -94,6 +97,7 @@ class TrailControllerTest {
 
         mockMvc.perform(post("/internal/trails")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
@@ -117,6 +121,7 @@ class TrailControllerTest {
 
         mockMvc.perform(post("/internal/trails")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
@@ -140,6 +145,7 @@ class TrailControllerTest {
 
         mockMvc.perform(post("/internal/trails")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
@@ -163,6 +169,7 @@ class TrailControllerTest {
 
         mockMvc.perform(post("/internal/trails")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Duplicate trail"))

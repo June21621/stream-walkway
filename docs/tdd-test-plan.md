@@ -62,6 +62,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | 파일 | 방식 | 전체 | GREEN | RED |
 |------|------|-----|-------|-----|
 | `src/test/.../BackendApplicationTests.java` | `@SpringBootTest` | 1 | 1 | 0 |
+| `src/test/.../config/HttpClientConfigTest.java` | `MockRestServiceServer` | 1 | 1 | 0 |
 | `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | 7 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 8 | 8 | 0 |
@@ -69,7 +70,7 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 + `MockRestServiceServer` | 12 | 12 | 0 |
 | `src/test/.../service/StreamServiceImplTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 |
 | `src/test/.../service/TrailServiceImplTest.java` | Mockito 단위 테스트 | 7 | 7 | 0 |
-| **합계** | | **54** | **54** | **0** |
+| **합계** | | **55** | **55** | **0** |
 
 ---
 
@@ -158,10 +159,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../command/GeometryValidatorTest.java` | 순수 단위 테스트 | 8 | 8 | 0 | 0 |
 | `src/test/.../command/GeometryColumnConstraintTest.java` | 제약조건 검증 | 5 | 5 | 0 | 0 |
 | `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 | 0 |
-| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 4 | 4 | 0 | 0 |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
+| `src/test/.../security/InternalKeyFilterTest.java` | 서블릿 목 단위 테스트 | 5 | 5 | 0 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 | 8 | 8 | 0 | 0 |
-| **합계** | | **86** | **85** | **1** | **0** |
+| **합계** | | **92** | **91** | **1** | **0** |
 
 ---
 
@@ -181,19 +183,21 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 ---
 
-## 테스트 현황 요약 (backend는 2026-09-03, youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
+## 테스트 현황 요약 (backend·writer는 2026-09-03, youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
 
 | 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
 |--------|-------------|-------|-----|------|
-| backend | 54 | 54 | 0 | 0 |
+| backend | 55 | 55 | 0 | 0 |
 | youtube-service | 47 | 47 | 0 | 0 |
 | ml-service | 28 | 28 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
-| writer | 86 | 85 | 1 | 0 |
+| writer | 92 | 91 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **288** | **286** | **2** | **0** |
+| **합계** | **295** | **293** | **2** | **0** |
 
-> **이전 갱신(2026-08-28) 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 54개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
+> **직전 갱신 대비 변화(2026-09-03 두 번째)**: writer의 `/internal/**`에 `X-Internal-Key` 검사를 넣었다(`InternalKeyFilter`). 그전까지 이 검사는 게이트웨이에만 있었는데 writer 포트가 호스트로 열려 있어 우회가 가능했다. writer 86 → 92(필터 5 + 컨트롤러 배선 401 1), backend 54 → 55(`writerRestClient`가 헤더를 싣는지 확인). 기존 writer 컨트롤러 테스트 9개에는 키 헤더를 추가했다 — 이제 그것이 실제 계약이다.
+>
+> **2026-08-28 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 54개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
 >
 > **2026-08-27 → 2026-08-28 변화**: youtube-service의 캡처 파이프라인(capture/storage/jobs/pipeline) 구현으로 RED 11개가 사라지고 테스트가 22개에서 47개로 늘었다(capture/storage/jobs/pipeline 테스트 파일 신설, kafka.test.js는 12개에서 10개로 재구성). 남은 RED 2개는 reader/writer의 `contextLoads` — 테스트 환경 설정 문제로 이번 구현과 무관하다.
 >

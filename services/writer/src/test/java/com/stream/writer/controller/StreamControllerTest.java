@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
@@ -20,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(StreamController.class)
+@TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("Writer - StreamController(내부 전용) 테스트")
 class StreamControllerTest {
 
@@ -58,6 +60,7 @@ class StreamControllerTest {
         // when & then
         mockMvc.perform(post("/internal/streams")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -81,6 +84,7 @@ class StreamControllerTest {
 
         mockMvc.perform(post("/internal/streams")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
@@ -101,6 +105,7 @@ class StreamControllerTest {
 
         mockMvc.perform(post("/internal/streams")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
@@ -121,8 +126,22 @@ class StreamControllerTest {
 
         mockMvc.perform(post("/internal/streams")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("POST /internal/streams - 키가 없으면 401을 내고 핸들러를 호출하지 않는다")
+    void create_returns401WithoutInternalKey() throws Exception {
+        // when & then - 필터가 요청 경로에 실제로 끼어드는지 확인한다.
+        // InternalKeyFilterTest는 필터 자체만 보므로 배선까지는 증명하지 못한다.
+        mockMvc.perform(post("/internal/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"우회 시도\",\"location\":\"LINESTRING(126.97 37.55, 126.98 37.56)\"}"))
+                .andExpect(status().isUnauthorized());
+
+        org.mockito.Mockito.verifyNoInteractions(streamCommandHandler);
     }
 }

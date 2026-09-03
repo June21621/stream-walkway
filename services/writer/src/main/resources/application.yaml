@@ -28,3 +28,7 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# /internal/** 접근에 요구하는 키. backend와 같은 값이어야 한다.
+internal:
+  api-key: ${INTERNAL_API_KEY:dev-internal-key-change-me}
