@@ -65,11 +65,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | 7 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 8 | 8 | 0 |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 10 | 10 | 0 |
-| `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 + `MockRestServiceServer` | 11 | 11 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 11 | 11 | 0 |
+| `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 + `MockRestServiceServer` | 12 | 12 | 0 |
 | `src/test/.../service/StreamServiceImplTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 |
 | `src/test/.../service/TrailServiceImplTest.java` | Mockito 단위 테스트 | 7 | 7 | 0 |
-| **합계** | | **52** | **52** | **0** |
+| **합계** | | **54** | **54** | **0** |
 
 ---
 
@@ -185,15 +185,15 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 | 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
 |--------|-------------|-------|-----|------|
-| backend | 52 | 52 | 0 | 0 |
+| backend | 54 | 54 | 0 | 0 |
 | youtube-service | 47 | 47 | 0 | 0 |
 | ml-service | 28 | 28 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
 | writer | 86 | 85 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **286** | **284** | **2** | **0** |
+| **합계** | **288** | **286** | **2** | **0** |
 
-> **이전 갱신(2026-08-28) 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 52개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
+> **이전 갱신(2026-08-28) 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 54개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
 >
 > **2026-08-27 → 2026-08-28 변화**: youtube-service의 캡처 파이프라인(capture/storage/jobs/pipeline) 구현으로 RED 11개가 사라지고 테스트가 22개에서 47개로 늘었다(capture/storage/jobs/pipeline 테스트 파일 신설, kafka.test.js는 12개에서 10개로 재구성). 남은 RED 2개는 reader/writer의 `contextLoads` — 테스트 환경 설정 문제로 이번 구현과 무관하다.
 >

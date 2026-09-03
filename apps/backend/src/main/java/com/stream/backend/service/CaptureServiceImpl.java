@@ -1,24 +1,33 @@
 package com.stream.backend.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.stream.backend.exception.CaptureJobFailedException;
+import com.stream.backend.exception.InvalidCaptureJobException;
 import com.stream.backend.model.Capture;
 import com.stream.backend.model.CaptureJob;
 import com.stream.backend.model.CaptureJobRequest;
-import com.stream.backend.exception.CaptureJobFailedException;
-import com.stream.backend.exception.InvalidCaptureJobException;
 import com.stream.shared.dto.CaptureView;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 public class CaptureServiceImpl implements CaptureService {
+
+    // CAPTURE_SOURCE=hls면 이 값이 youtube-service에서 ffmpeg -i 인자가 된다.
+    // ffmpeg는 file:/concat: 같은 스킴도 받고 그렇게 읽은 프레임은 공개 버킷에
+    // 올라가므로, 스킴을 좁히지 않으면 임의 파일 읽기 겸 유출 경로가 된다.
+    // youtube-service에 -protocol_whitelist가 없어 여기가 유일한 관문이다.
+    private static final Pattern SUPPORTED_SCHEME =
+            Pattern.compile("^(?:https?|rtsps?)://.+", Pattern.CASE_INSENSITIVE);
 
     private final RestClient readerClient;
     private final RestClient youtubeClient;
@@ -84,6 +93,7 @@ public class CaptureServiceImpl implements CaptureService {
         require(request.streamId(), "stream_id");
         require(request.trailId(), "trail_id");
         require(request.sourceUrl(), "source_url");
+        requireSupportedScheme(request.sourceUrl());
 
         CaptureJob job;
         try {
@@ -93,11 +103,11 @@ public class CaptureServiceImpl implements CaptureService {
                     .body(new DownloadRequest(request.streamId(), request.trailId(), request.sourceUrl()))
                     .retrieve()
                     .body(CaptureJob.class);
-        } catch (HttpClientErrorException.BadRequest e) {
-            // 위 검사를 통과했는데도 400이면 두 서비스의 계약이 어긋난 것이다.
-            throw new InvalidCaptureJobException(
-                    "youtube-service rejected the capture job: " + e.getResponseBodyAsString());
         } catch (RestClientException e) {
+            // 위 검사를 통과했는데도 400이 오면 두 서비스의 계약이 어긋난 것이다.
+            // 그것은 클라이언트 잘못이 아니라 통합 버그이므로 다른 실패와 같이 502로 낸다.
+            // 다운스트림 본문을 인용하지도 않는다 - 그쪽 400은 "youtube_url is required"라
+            // 우리가 source_url로 이름을 바꾼 이유를 스스로 무너뜨린다.
             throw new CaptureJobFailedException("youtube-service call failed: " + e.getMessage());
         }
         if (job == null) {
@@ -121,6 +131,12 @@ public class CaptureServiceImpl implements CaptureService {
         }
     }
 
+    private static void requireSupportedScheme(String url) {
+        if (!SUPPORTED_SCHEME.matcher(url).matches()) {
+            throw new InvalidCaptureJobException("source_url must be an http(s) or rtsp(s) URL");
+        }
+    }
+
     private static void require(Object value, String field) {
         if (value == null || (value instanceof String s && s.isBlank())) {
             throw new InvalidCaptureJobException(field + " is required");
@@ -130,7 +146,7 @@ public class CaptureServiceImpl implements CaptureService {
     // youtube-service의 POST /download는 snake_case 이름을 그대로 요구한다.
     // source_url -> youtube_url 매핑이 일어나는 곳은 여기 한 군데뿐이다.
     private record DownloadRequest(
-            @com.fasterxml.jackson.annotation.JsonProperty("stream_id") Long streamId,
-            @com.fasterxml.jackson.annotation.JsonProperty("trail_id") Long trailId,
-            @com.fasterxml.jackson.annotation.JsonProperty("youtube_url") String youtubeUrl) {}
+            @JsonProperty("stream_id") Long streamId,
+            @JsonProperty("trail_id") Long trailId,
+            @JsonProperty("youtube_url") String youtubeUrl) {}
 }

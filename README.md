@@ -75,13 +75,12 @@ stream-walkway/
 
 ```
 Frontend → Backend (Gateway) → YouTube Service → ffmpeg 프레임 캡처 → MinIO
-        POST /api/captures/jobs      POST /download
                               ↓
                          Kafka (image.downloaded)
                               ↓
                     ML Service (병렬 처리)
                               ↓
-                         Kafka (분석 결과)
+                         Kafka (image.analyzed)
                               ↓
                     Writer Service → PostgreSQL + Redis
                               ↓

@@ -1,5 +1,6 @@
 package com.stream.backend.controller;
 
+import com.stream.backend.exception.CaptureJobFailedException;
 import com.stream.backend.exception.InvalidCaptureJobException;
 import com.stream.backend.model.Capture;
 import com.stream.backend.model.CaptureJob;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -22,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CaptureController.class)
-@org.springframework.test.context.TestPropertySource(properties = "internal.api-key=test-internal-key")
+@TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("CaptureController 테스트")
 class CaptureControllerTest {
 
@@ -142,11 +144,13 @@ class CaptureControllerTest {
             """;
 
     @Test
-    @DisplayName("POST /api/captures/jobs - 작업을 만들고 202 Accepted로 jobId를 반환한다")
+    @DisplayName("POST /api/captures/jobs - 요청 본문의 snake_case를 그대로 옮겨 202 Accepted로 jobId를 반환한다")
     void createJob_returns202WithJobId() throws Exception {
-        // given
-        given(captureService.createJob(any(CaptureJobRequest.class)))
-                .willReturn(new CaptureJob("job-1", "pending", null, null, null));
+        // given - any()로 스텁하면 @JsonProperty를 전부 지워도(전 필드 null) 통과한다.
+        // 정확한 레코드로 스텁해야 stream_id/trail_id/source_url 매핑이 실제로 검증된다.
+        given(captureService.createJob(
+                new CaptureJobRequest(1L, 2L, "https://example.com/stream.m3u8")))
+                .willReturn(new CaptureJob("job-1", "queued", null, null, null));
 
         // when & then
         mockMvc.perform(post("/api/captures/jobs")
@@ -155,7 +159,7 @@ class CaptureControllerTest {
                         .content(JOB_REQUEST))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.jobId").value("job-1"))
-                .andExpect(jsonPath("$.status").value("pending"))
+                .andExpect(jsonPath("$.status").value("queued"))
                 // 트리거 직후엔 진행률이 없다. null 필드가 응답에 나오면 안 된다.
                 .andExpect(jsonPath("$.progress").doesNotExist())
                 .andExpect(jsonPath("$.downloaded_count").doesNotExist());
@@ -188,6 +192,22 @@ class CaptureControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Invalid capture job request"))
                 .andExpect(jsonPath("$.message").value("source_url is required"));
+    }
+
+    @Test
+    @DisplayName("POST /api/captures/jobs - youtube-service가 응답하지 못하면 502 Bad Gateway를 반환한다")
+    void createJob_returns502WhenCaptureServiceUnavailable() throws Exception {
+        // given
+        given(captureService.createJob(any(CaptureJobRequest.class)))
+                .willThrow(new CaptureJobFailedException("youtube-service call failed: timeout"));
+
+        // when & then
+        mockMvc.perform(post("/api/captures/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
+                        .content(JOB_REQUEST))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error").value("Capture service unavailable"));
     }
 
     // ─────────────────────────────────────────

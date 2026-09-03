@@ -299,7 +299,7 @@
                   "port": "{{backend_port}}",
                   "path": ["api", "captures", "jobs"]
                 },
-                "description": "[내부 전용 - 외부 비공개] 캡처 파이프라인의 입구입니다. Backend가 YouTube Service의 POST /download를 동기 호출해 작업을 시작시키고, 그 뒤 단계(분석 → 저장)는 Kafka로 흐릅니다. Backend는 202 + jobId를 받고 끝이라 시간적 결합이 없습니다.\n\n한 번 호출하면 프레임 한 장을 뜹니다. 15분 주기를 세는 스케줄러는 아직 없습니다 - 현재 데이터 출처가 녹화된 영상이라 벽시계 주기가 의미를 갖지 않기 때문입니다.\n\nsource_url은 YouTube Service를 호출할 때만 그쪽의 youtube_url로 매핑됩니다. YouTube 어댑터는 이용약관 때문에 만들지 않았고, 실제 소스는 CAPTURE_SOURCE 환경변수로 고릅니다(testsrc / file / hls). testsrc와 file은 이 URL을 무시합니다."
+                "description": "[내부 전용 - 외부 비공개] 캡처 파이프라인의 입구입니다. Backend가 YouTube Service의 POST /download를 동기 호출해 작업을 시작시키고, 그 뒤 단계(분석 → 저장)는 Kafka로 흐릅니다. Backend는 202 + jobId를 받고 끝이라 시간적 결합이 없습니다.\n\n한 번 호출하면 프레임 한 장을 뜹니다. 15분 주기를 세는 스케줄러는 아직 없습니다 - 현재 데이터 출처가 녹화된 영상이라 벽시계 주기가 의미를 갖지 않기 때문입니다.\n\nsource_url은 YouTube Service를 호출할 때만 그쪽의 youtube_url로 매핑됩니다. YouTube 어댑터는 이용약관 때문에 만들지 않았고, 실제 소스는 CAPTURE_SOURCE 환경변수로 고릅니다(testsrc / file / hls). testsrc와 file은 이 URL을 무시합니다.\n\nsource_url은 http(s) 또는 rtsp(s) 스킴만 받습니다. hls 소스에서 이 값이 ffmpeg의 -i 인자가 되는데 ffmpeg는 file:/concat: 같은 스킴도 읽고 그 결과가 공개 버킷에 올라가기 때문입니다."
               },
               "response": [
                 {
@@ -307,7 +307,7 @@
                   "status": "Accepted",
                   "code": 202,
                   "header": [{ "key": "Content-Type", "value": "application/json" }],
-                  "body": "{\n  \"jobId\": \"3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b\",\n  \"status\": \"pending\"\n}"
+                  "body": "{\n  \"jobId\": \"3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b\",\n  \"status\": \"queued\"\n}"
                 },
                 {
                   "name": "400 Bad Request - 필수 필드 누락",
@@ -321,7 +321,7 @@
                   "status": "Unauthorized",
                   "code": 401,
                   "header": [{ "key": "Content-Type", "value": "application/json" }],
-                  "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid internal API key\"\n}"
+                  "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid or missing X-Internal-Key\"\n}"
                 },
                 {
                   "name": "502 Bad Gateway - YouTube Service 응답 없음",
@@ -382,7 +382,7 @@
     },
     {
       "name": "YouTube Service :3001",
-      "description": "ffmpeg로 스트림에서 프레임을 캡처해 MinIO에 업로드하고 Kafka로 이벤트를 발행하는 서비스 (YouTube 직접 다운로드는 이용약관 문제로 지원하지 않음)",
+      "description": "[디버그/개발용] 정상 경로는 Backend Gateway의 POST /api/captures/jobs 입니다. 운영에서 이 포트는 클라이언트에 노출되지 않습니다. — ffmpeg로 스트림에서 프레임을 캡처해 MinIO에 업로드하고 Kafka로 이벤트를 발행하는 서비스 (YouTube 직접 다운로드는 이용약관 문제로 지원하지 않음)",
       "item": [
         {
           "name": "이미지 다운로드 요청",

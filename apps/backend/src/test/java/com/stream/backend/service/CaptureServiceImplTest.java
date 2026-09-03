@@ -10,6 +10,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -194,14 +197,14 @@ class CaptureServiceImplTest {
         // given
         Fixture f = youtubeFixture();
         f.server().expect(requestTo("http://youtube-service:3000/download"))
-                .andExpect(method(org.springframework.http.HttpMethod.POST))
+                .andExpect(method(HttpMethod.POST))
                 .andExpect(jsonPath("$.stream_id").value(1))
                 .andExpect(jsonPath("$.trail_id").value(2))
                 .andExpect(jsonPath("$.youtube_url").value("https://example.com/s.m3u8"))
-                .andRespond(withStatus(org.springframework.http.HttpStatus.ACCEPTED)
-                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
                         .body("""
-                                {"jobId":"job-1","status":"pending","stream_id":1,
+                                {"jobId":"job-1","status":"queued","stream_id":1,
                                  "trail_id":2,"youtube_url":"https://example.com/s.m3u8"}
                                 """));
 
@@ -211,7 +214,7 @@ class CaptureServiceImplTest {
 
         // then
         assertThat(job.jobId()).isEqualTo("job-1");
-        assertThat(job.status()).isEqualTo("pending");
+        assertThat(job.status()).isEqualTo("queued");
         // 트리거 응답에는 진행률이 없다. 응답에 없는 키가 0으로 채워지면 안 된다.
         assertThat(job.progress()).isNull();
         assertThat(job.downloadedCount()).isNull();
@@ -232,6 +235,22 @@ class CaptureServiceImplTest {
     }
 
     @Test
+    @DisplayName("createJob() - http(s)/rtsp가 아닌 source_url은 호출 전에 거부한다")
+    void createJob_rejectsUnsupportedScheme() {
+        // given - CAPTURE_SOURCE=hls면 이 값이 ffmpeg -i 인자가 되고, ffmpeg는
+        // file:/concat:도 받는다. 서버 기대를 등록하지 않았으므로 호출이 나가면 실패한다.
+        Fixture f = youtubeFixture();
+
+        // when & then
+        for (String bad : new String[] {"file:///etc/passwd", "concat:/etc/passwd", "/etc/passwd"}) {
+            assertThatThrownBy(() -> f.service().createJob(new CaptureJobRequest(1L, 2L, bad)))
+                    .isInstanceOf(InvalidCaptureJobException.class)
+                    .hasMessageContaining("source_url");
+        }
+        f.server().verify();
+    }
+
+    @Test
     @DisplayName("createJob() - youtube-service가 5xx면 CaptureJobFailedException으로 바꾼다")
     void createJob_wrapsServerError() {
         // given
@@ -243,6 +262,7 @@ class CaptureServiceImplTest {
         assertThatThrownBy(() -> f.service().createJob(
                 new CaptureJobRequest(1L, 2L, "https://example.com/s.m3u8")))
                 .isInstanceOf(CaptureJobFailedException.class);
+        f.server().verify();
     }
 
     @Test
@@ -251,10 +271,10 @@ class CaptureServiceImplTest {
         // given
         Fixture f = youtubeFixture();
         f.server().expect(requestTo("http://youtube-service:3000/status/job-1"))
-                .andExpect(method(org.springframework.http.HttpMethod.GET))
+                .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {"jobId":"job-1","status":"completed","progress":100,"downloaded_count":1}
-                        """, org.springframework.http.MediaType.APPLICATION_JSON));
+                        """, MediaType.APPLICATION_JSON));
 
         // when
         Optional<CaptureJob> job = f.service().findJob("job-1");
@@ -277,5 +297,6 @@ class CaptureServiceImplTest {
 
         // when & then
         assertThat(f.service().findJob("nope")).isEmpty();
+        f.server().verify();
     }
 }
