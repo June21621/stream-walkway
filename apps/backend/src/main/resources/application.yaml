@@ -9,6 +9,8 @@ reader:
   base-url: ${READER_BASE_URL:http://localhost:8001}
 writer:
   base-url: ${WRITER_BASE_URL:http://localhost:8002}
+youtube:
+  base-url: ${YOUTUBE_BASE_URL:http://localhost:3001}
 
 internal:
   api-key: ${INTERNAL_API_KEY:dev-internal-key-change-me}

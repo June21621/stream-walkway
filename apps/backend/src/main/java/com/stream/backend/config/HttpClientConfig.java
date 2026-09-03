@@ -35,4 +35,14 @@ public class HttpClientConfig {
                 .requestFactory(timeoutRequestFactory())
                 .build();
     }
+
+    // youtube-service는 202를 즉시 돌려주고 캡처는 뒤에서 돈다. 읽기 타임아웃
+    // 5초는 ffmpeg 실행 시간이 아니라 그 202를 기다리는 시간이라 넉넉하다.
+    @Bean
+    public RestClient youtubeRestClient(@Value("${youtube.base-url}") String youtubeBaseUrl) {
+        return RestClient.builder()
+                .baseUrl(youtubeBaseUrl)
+                .requestFactory(timeoutRequestFactory())
+                .build();
+    }
 }

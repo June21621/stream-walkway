@@ -2,13 +2,13 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-08-28 — youtube-service 캡처 파이프라인(capture/storage/jobs/pipeline) 구현 완료로 RED 11개가 전부 GREEN이 되었다. 저장소 전체에 미구현 스텁이 하나도 남지 않았다. youtube-service 수치만 이날 재측정했다 — 나머지 모듈은 2026-08-27 실측값을 그대로 유지한다(아래 "측정 방법 및 환경" 참고).
+> 최종 갱신: 2026-09-03 — backend에 캡처 트리거(`POST /api/captures/jobs`)와 작업 상태 조회(`GET /api/captures/jobs/{jobId}`)를 추가해 파이프라인 입구를 게이트웨이로 옮겼다. backend 수치만 이날 재측정했다 — youtube-service는 2026-08-28, 나머지 모듈은 2026-08-27 실측값을 그대로 유지한다(아래 "측정 방법 및 환경" 참고).
 
 ---
 
 ## 측정 방법 및 환경
 
-이 문서의 테스트 수치는 추정이 아니라 실제로 실행한 결과입니다. shared/reader/writer/backend/ml-service는 2026-08-27 실측값을 유지하며, youtube-service만 2026-08-28에 재측정했다(이 브랜치가 유일하게 건드린 모듈이라 다른 모듈은 재측정 대상이 아니다). 2026-08-28 재측정 시점에는 Docker가 실행 중이 아니어서 writer의 Testcontainers 테스트가 다시 스킵되는 것을 확인했지만 — 이는 회귀가 아니라 아래 "Docker" 항목에 적힌 환경 의존성이 재현된 것이며, writer 행은 Docker가 떠 있던 2026-08-27 실측값(85 GREEN / 1 RED / 0 SKIP)을 그대로 둔다.
+이 문서의 테스트 수치는 추정이 아니라 실제로 실행한 결과입니다. shared/reader/writer/ml-service는 2026-08-27 실측값을, youtube-service는 2026-08-28 실측값을 유지하며, backend만 2026-09-03에 재측정했다(이 브랜치가 유일하게 건드린 모듈이라 다른 모듈은 재측정 대상이 아니다). 2026-08-28 재측정 시점에는 Docker가 실행 중이 아니어서 writer의 Testcontainers 테스트가 다시 스킵되는 것을 확인했지만 — 이는 회귀가 아니라 아래 "Docker" 항목에 적힌 환경 의존성이 재현된 것이며, writer 행은 Docker가 떠 있던 2026-08-27 실측값(85 GREEN / 1 RED / 0 SKIP)을 그대로 둔다.
 
 | 대상 | 실행 명령 | 집계 방식 | 최종 실측일 |
 |------|---------|---------|---------|
@@ -65,11 +65,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../HealthCheckTest.java` | `@WebMvcTest` | 3 | 3 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 7 | 7 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 8 | 8 | 0 |
-| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 |
-| `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 | 6 | 6 | 0 |
+| `src/test/.../controller/CaptureControllerTest.java` | `@WebMvcTest` + `@MockBean` | 10 | 10 | 0 |
+| `src/test/.../service/CaptureServiceImplTest.java` | Mockito 단위 테스트 + `MockRestServiceServer` | 11 | 11 | 0 |
 | `src/test/.../service/StreamServiceImplTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 |
 | `src/test/.../service/TrailServiceImplTest.java` | Mockito 단위 테스트 | 7 | 7 | 0 |
-| **합계** | | **42** | **42** | **0** |
+| **합계** | | **52** | **52** | **0** |
 
 ---
 
@@ -181,19 +181,21 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 ---
 
-## 테스트 현황 요약 (youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
+## 테스트 현황 요약 (backend는 2026-09-03, youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
 
 | 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
 |--------|-------------|-------|-----|------|
-| backend | 42 | 42 | 0 | 0 |
+| backend | 52 | 52 | 0 | 0 |
 | youtube-service | 47 | 47 | 0 | 0 |
 | ml-service | 28 | 28 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
 | writer | 86 | 85 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **276** | **274** | **2** | **0** |
+| **합계** | **286** | **284** | **2** | **0** |
 
-> **이전 갱신(2026-08-27) 대비 변화**: youtube-service의 캡처 파이프라인(capture/storage/jobs/pipeline) 구현으로 RED 11개가 사라지고 테스트가 22개에서 47개로 늘었다(capture/storage/jobs/pipeline 테스트 파일 신설, kafka.test.js는 12개에서 10개로 재구성). 남은 RED 2개는 reader/writer의 `contextLoads` — 테스트 환경 설정 문제로 이번 구현과 무관하다.
+> **이전 갱신(2026-08-28) 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 52개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
+>
+> **2026-08-27 → 2026-08-28 변화**: youtube-service의 캡처 파이프라인(capture/storage/jobs/pipeline) 구현으로 RED 11개가 사라지고 테스트가 22개에서 47개로 늘었다(capture/storage/jobs/pipeline 테스트 파일 신설, kafka.test.js는 12개에서 10개로 재구성). 남은 RED 2개는 reader/writer의 `contextLoads` — 테스트 환경 설정 문제로 이번 구현과 무관하다.
 >
 > **2026-08-16 대비 변화**: 당시 표는 총 122개(GREEN 85 / RED 37)였다. 그 표는 스텁 생성 당시 존재하던 파일만 집계했고, 이후 추가된 Stream/Trail/Geometry 관련 테스트와 `packages/shared` 모듈이 빠져 있었다.
 

@@ -1,6 +1,9 @@
 package com.stream.backend.controller;
 
+import com.stream.backend.exception.InvalidCaptureJobException;
 import com.stream.backend.model.Capture;
+import com.stream.backend.model.CaptureJob;
+import com.stream.backend.model.CaptureJobRequest;
 import com.stream.backend.service.CaptureService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,11 +16,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CaptureController.class)
+@org.springframework.test.context.TestPropertySource(properties = "internal.api-key=test-internal-key")
 @DisplayName("CaptureController 테스트")
 class CaptureControllerTest {
 
@@ -122,5 +127,100 @@ class CaptureControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Capture not found"))
                 .andExpect(jsonPath("$.id").value(999));
+    }
+
+    // ─────────────────────────────────────────
+    // POST /api/captures/jobs — 캡처 트리거
+    // ─────────────────────────────────────────
+
+    private static final String JOB_REQUEST = """
+            {
+              "stream_id": 1,
+              "trail_id": 2,
+              "source_url": "https://example.com/stream.m3u8"
+            }
+            """;
+
+    @Test
+    @DisplayName("POST /api/captures/jobs - 작업을 만들고 202 Accepted로 jobId를 반환한다")
+    void createJob_returns202WithJobId() throws Exception {
+        // given
+        given(captureService.createJob(any(CaptureJobRequest.class)))
+                .willReturn(new CaptureJob("job-1", "pending", null, null, null));
+
+        // when & then
+        mockMvc.perform(post("/api/captures/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
+                        .content(JOB_REQUEST))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").value("job-1"))
+                .andExpect(jsonPath("$.status").value("pending"))
+                // 트리거 직후엔 진행률이 없다. null 필드가 응답에 나오면 안 된다.
+                .andExpect(jsonPath("$.progress").doesNotExist())
+                .andExpect(jsonPath("$.downloaded_count").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("POST /api/captures/jobs - 잘못된 X-Internal-Key면 401 Unauthorized를 반환한다")
+    void createJob_returns401WithWrongInternalKey() throws Exception {
+        mockMvc.perform(post("/api/captures/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "wrong-key")
+                        .content(JOB_REQUEST))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/captures/jobs - 필수 필드가 없으면 400 Bad Request를 반환한다")
+    void createJob_returns400WhenFieldMissing() throws Exception {
+        // given
+        given(captureService.createJob(any(CaptureJobRequest.class)))
+                .willThrow(new InvalidCaptureJobException("source_url is required"));
+
+        // when & then
+        mockMvc.perform(post("/api/captures/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Internal-Key", "test-internal-key")
+                        .content("""
+                                {"stream_id": 1, "trail_id": 2}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid capture job request"))
+                .andExpect(jsonPath("$.message").value("source_url is required"));
+    }
+
+    // ─────────────────────────────────────────
+    // GET /api/captures/jobs/{jobId}
+    // ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /api/captures/jobs/{jobId} - 작업 상태를 200 OK로 반환한다")
+    void getJob_returns200WhenFound() throws Exception {
+        // given
+        given(captureService.findJob("job-1"))
+                .willReturn(Optional.of(new CaptureJob("job-1", "completed", 100, 1, null)));
+
+        // when & then
+        mockMvc.perform(get("/api/captures/jobs/job-1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.jobId").value("job-1"))
+                .andExpect(jsonPath("$.status").value("completed"))
+                .andExpect(jsonPath("$.progress").value(100))
+                .andExpect(jsonPath("$.downloaded_count").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/captures/jobs/{jobId} - 없는 작업은 404 Not Found와 에러 바디를 반환한다")
+    void getJob_returns404WhenNotFound() throws Exception {
+        // given
+        given(captureService.findJob("nope")).willReturn(Optional.empty());
+
+        // when & then
+        mockMvc.perform(get("/api/captures/jobs/nope"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Capture job not found"))
+                .andExpect(jsonPath("$.jobId").value("nope"));
     }
 }

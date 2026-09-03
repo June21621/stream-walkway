@@ -110,6 +110,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       READER_BASE_URL: http://reader:8080
       WRITER_BASE_URL: http://writer:8080
+      YOUTUBE_BASE_URL: http://youtube-service:3000
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
     depends_on:
       postgres:

@@ -75,6 +75,7 @@ stream-walkway/
 
 ```
 Frontend → Backend (Gateway) → YouTube Service → ffmpeg 프레임 캡처 → MinIO
+        POST /api/captures/jobs      POST /download
                               ↓
                          Kafka (image.downloaded)
                               ↓
@@ -86,6 +87,16 @@ Frontend → Backend (Gateway) → YouTube Service → ffmpeg 프레임 캡처 �
                               ↓
                     Reader Service ← 사용자 조회 요청
 ```
+
+파이프라인의 입구는 게이트웨이 하나뿐입니다. Backend가 `POST /api/captures/jobs`를
+받아 YouTube Service의 `POST /download`를 동기 호출해 작업을 시작시키고, 202와 함께
+`jobId`를 돌려받는 것으로 관여가 끝납니다. 그 뒤 단계(분석 → 저장)는 Kafka로 흐릅니다.
+진행 상태는 `GET /api/captures/jobs/{jobId}`로 확인합니다.
+
+한 번 호출하면 프레임 한 장을 뜹니다. 주기적으로 호출하는 스케줄러는 아직 없습니다 —
+현재 데이터 출처가 라이브 스트림이 아니라 녹화된 영상이라 벽시계 주기가 의미를 갖지
+않기 때문입니다(`docs/superpowers/specs/2026-08-27-youtube-capture-design.md`의
+"후속 작업" 참고).
 
 ## 시작하기
 

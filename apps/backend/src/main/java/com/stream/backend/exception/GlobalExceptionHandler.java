@@ -46,6 +46,25 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Invalid trail data", "message", e.getMessage()));
     }
 
+    @ExceptionHandler(CaptureJobNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCaptureJobNotFound(CaptureJobNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "Capture job not found", "jobId", e.getJobId()));
+    }
+
+    @ExceptionHandler(InvalidCaptureJobException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCaptureJob(InvalidCaptureJobException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "Invalid capture job request", "message", e.getMessage()));
+    }
+
+    // youtube-service가 응답하지 못한 것이지 클라이언트 잘못이 아니다.
+    @ExceptionHandler(CaptureJobFailedException.class)
+    public ResponseEntity<Map<String, Object>> handleCaptureJobFailed(CaptureJobFailedException e) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("error", "Capture service unavailable", "message", e.getMessage()));
+    }
+
     @ExceptionHandler(DuplicateTrailException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateTrail(DuplicateTrailException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

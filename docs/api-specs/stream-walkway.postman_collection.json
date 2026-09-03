@@ -279,6 +279,102 @@
                   "body": "{\n  \"error\": \"Capture not found\",\n  \"id\": 1\n}"
                 }
               ]
+            },
+            {
+              "name": "캡처 작업 트리거 [내부 전용]",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Internal-Key", "value": "{{internal_api_key}}", "description": "내부 전용 인증 키" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"stream_id\": 1,\n  \"trail_id\": 2,\n  \"source_url\": \"https://example.com/stream.m3u8\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/captures/jobs",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "captures", "jobs"]
+                },
+                "description": "[내부 전용 - 외부 비공개] 캡처 파이프라인의 입구입니다. Backend가 YouTube Service의 POST /download를 동기 호출해 작업을 시작시키고, 그 뒤 단계(분석 → 저장)는 Kafka로 흐릅니다. Backend는 202 + jobId를 받고 끝이라 시간적 결합이 없습니다.\n\n한 번 호출하면 프레임 한 장을 뜹니다. 15분 주기를 세는 스케줄러는 아직 없습니다 - 현재 데이터 출처가 녹화된 영상이라 벽시계 주기가 의미를 갖지 않기 때문입니다.\n\nsource_url은 YouTube Service를 호출할 때만 그쪽의 youtube_url로 매핑됩니다. YouTube 어댑터는 이용약관 때문에 만들지 않았고, 실제 소스는 CAPTURE_SOURCE 환경변수로 고릅니다(testsrc / file / hls). testsrc와 file은 이 URL을 무시합니다."
+              },
+              "response": [
+                {
+                  "name": "202 Accepted",
+                  "status": "Accepted",
+                  "code": 202,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"jobId\": \"3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b\",\n  \"status\": \"pending\"\n}"
+                },
+                {
+                  "name": "400 Bad Request - 필수 필드 누락",
+                  "status": "Bad Request",
+                  "code": 400,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Invalid capture job request\",\n  \"message\": \"source_url is required\"\n}"
+                },
+                {
+                  "name": "401 Unauthorized",
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid internal API key\"\n}"
+                },
+                {
+                  "name": "502 Bad Gateway - YouTube Service 응답 없음",
+                  "status": "Bad Gateway",
+                  "code": 502,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Capture service unavailable\",\n  \"message\": \"youtube-service call failed: ...\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "캡처 작업 상태 조회",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}:{{backend_port}}/api/captures/jobs/:jobId",
+                  "host": ["{{base_url}}"],
+                  "port": "{{backend_port}}",
+                  "path": ["api", "captures", "jobs", ":jobId"],
+                  "variable": [
+                    {
+                      "key": "jobId",
+                      "value": "3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b",
+                      "description": "트리거 응답의 jobId"
+                    }
+                  ]
+                },
+                "description": "[외부 공개] 캡처 작업의 진행 상태입니다. YouTube Service의 GET /status/:jobId를 그대로 프록시합니다. 프론트엔드가 정적 CDN 배포라 브라우저가 3001 포트를 직접 물지 않도록 게이트웨이를 거칩니다."
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"jobId\": \"3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b\",\n  \"status\": \"completed\",\n  \"progress\": 100,\n  \"downloaded_count\": 1\n}"
+                },
+                {
+                  "name": "200 OK - 실패한 작업",
+                  "status": "OK",
+                  "code": 200,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"jobId\": \"3f2b1c8e-9a44-4d1e-8b77-1c2d3e4f5a6b\",\n  \"status\": \"failed\",\n  \"progress\": 0,\n  \"downloaded_count\": 0,\n  \"error\": \"capture failed: ...\"\n}"
+                },
+                {
+                  "name": "404 Not Found",
+                  "status": "Not Found",
+                  "code": 404,
+                  "header": [{ "key": "Content-Type", "value": "application/json" }],
+                  "body": "{\n  \"error\": \"Capture job not found\",\n  \"jobId\": \"nope\"\n}"
+                }
+              ]
             }
           ]
         }
