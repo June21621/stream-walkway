@@ -18,6 +18,7 @@ import java.time.Instant;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(StreamController.class)
@@ -138,6 +139,22 @@ class StreamControllerTest {
         // when & then - 필터가 요청 경로에 실제로 끼어드는지 확인한다.
         // InternalKeyFilterTest는 필터 자체만 보므로 배선까지는 증명하지 못한다.
         mockMvc.perform(post("/internal/streams")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"우회 시도\",\"location\":\"LINESTRING(126.97 37.55, 126.98 37.56)\"}"))
+                .andExpect(status().isUnauthorized());
+
+        org.mockito.Mockito.verifyNoInteractions(streamCommandHandler);
+    }
+
+    @Test
+    @DisplayName("POST /%69nternal/streams - 퍼센트 인코딩으로 필터를 우회할 수 없다")
+    void create_returns401ForPercentEncodedPath() throws Exception {
+        // given - getRequestURI()는 디코딩되지 않은 원본을 준다. Spring MVC는
+        // 디코딩된 경로로 라우팅하므로, 접두사 비교를 원본에 하면 %69nternal이
+        // 필터를 지나쳐 컨트롤러에 닿는다. 실제로 201이 났던 경로다.
+        // when & then
+        mockMvc.perform(request(org.springframework.http.HttpMethod.POST,
+                        java.net.URI.create("/%69nternal/streams"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"우회 시도\",\"location\":\"LINESTRING(126.97 37.55, 126.98 37.56)\"}"))
                 .andExpect(status().isUnauthorized());

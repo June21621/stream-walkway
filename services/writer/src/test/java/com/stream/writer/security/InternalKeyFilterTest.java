@@ -40,7 +40,6 @@ class InternalKeyFilterTest {
 
         // then
         verify(chain, times(1)).doFilter(any(), any());
-        assertThat(response.getStatus()).isEqualTo(200);
     }
 
     @Test
@@ -93,10 +92,27 @@ class InternalKeyFilterTest {
     }
 
     @Test
-    @DisplayName("/internal 밖의 경로는 키 없이도 통과시킨다")
-    void ignoresNonInternalPaths() throws Exception {
-        // given - 헬스체크와 액추에이터가 막히면 컨테이너가 죽는다
-        for (String uri : new String[] {"/health", "/actuator/health", "/internalish"}) {
+    @DisplayName("/health는 키 없이도 통과시킨다")
+    void allowsHealthCheck() throws Exception {
+        // given - 헬스체크가 막히면 컨테이너가 죽는다
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        // when
+        filter.doFilter(request("/health", null), response, chain);
+
+        // then
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
+    @DisplayName("공개 목록에 없는 경로는 전부 키를 요구한다")
+    void rejectsEverythingNotExplicitlyPublic() throws Exception {
+        // given - 접두사 거부 목록이었을 때 %69nternal이 통과했다. 허용 목록은
+        // 정규화되지 않은 경로든 처음 보는 경로든 전부 닫는다.
+        for (String uri : new String[] {
+                "/%69nternal/streams", "/INTERNAL/streams", "/internalish",
+                "/internal/streams/", "/foo/../internal/streams", "/actuator/health"}) {
             MockHttpServletResponse response = new MockHttpServletResponse();
             FilterChain chain = mock(FilterChain.class);
 
@@ -104,8 +120,8 @@ class InternalKeyFilterTest {
             filter.doFilter(request(uri, null), response, chain);
 
             // then
-            verify(chain, times(1)).doFilter(any(), any());
-            assertThat(response.getStatus()).as(uri).isEqualTo(200);
+            verify(chain, never()).doFilter(any(), any());
+            assertThat(response.getStatus()).as(uri).isEqualTo(401);
         }
     }
 }

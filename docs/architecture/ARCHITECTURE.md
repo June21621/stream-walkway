@@ -46,20 +46,37 @@ stream-walkway/
 
 ## 내부 API 인증
 
-쓰기 경로에는 공유 비밀 `X-Internal-Key`가 걸려 있다. 값은 두 서비스가 같은
+**HTTP 쓰기 경로**에는 공유 비밀 `X-Internal-Key`가 걸려 있다. 값은 두 서비스가 같은
 `INTERNAL_API_KEY` 환경변수에서 읽는다.
 
 - `apps/backend`의 쓰기 엔드포인트(`POST /api/streams`, `POST /api/trails`,
   `POST /api/captures/jobs`)가 헤더를 검사한다
-- `services/writer`의 `/internal/**` 전체를 `InternalKeyFilter`가 다시 검사한다
+- `services/writer`는 `InternalKeyFilter`가 **`/health`를 제외한 모든 요청**에서 검사한다
 
-**두 겹인 이유:** writer의 포트가 compose에서 호스트로 열려 있어
+**writer에서도 검사하는 이유:** writer의 포트가 compose에서 호스트로 열려 있어
 (`${WRITER_PORT:-8002}:8080`) 게이트웨이를 건너뛰고 직접 쓸 수 있다. 게이트웨이에만
-검사를 두면 우회로가 열린 채로 남는다. 필터는 컨트롤러 바깥에 있으므로 앞으로
-추가되는 `/internal/**` 엔드포인트도 자동으로 덮인다.
+검사를 두면 익명 우회로가 열린 채로 남는다.
+
+**이것은 심층 방어가 아니다.** 양쪽이 같은 비밀을 쓰므로, 게이트웨이 쓰기 API를
+쓸 자격이 있는 호출자는 이미 writer를 직접 열 자격도 가진 셈이다. 이 검사가 막는
+것은 **인증되지 않은** 직접 접근이지 침해된 클라이언트가 아니다. 진짜로 층을
+나누려면 게이트웨이↔writer 전용 자격증명을 따로 두거나, 애초에 8002 포트를
+호스트에 게시하지 않아야 한다(후자가 더 싸다 — 디버깅 편의를 위해 열어두고 있다).
+
+**보호 대상을 경로 접두사로 고르지 않는다.** `/internal/`로 시작하면 막는 방식은
+실제로 우회됐다. `getRequestURI()`가 디코딩되지 않은 원본을 주는데 Spring MVC는
+디코딩된 경로로 라우팅해서, `POST /%69nternal/streams`가 필터를 지나쳐 핸들러까지
+닿았다(2026-09-03 실측, 회귀 테스트로 고정). 그래서 공개 경로만 나열하는 허용
+목록으로 뒤집었다 — 거부 목록은 정규화하지 않은 경로 앞에서 열린 채로 실패한다.
 
 reader에는 걸지 않는다. 조회는 공개 API이고 게이트웨이도 GET에는 키를 요구하지 않는다.
 
-**한계:** 단일 공유 비밀이고 기본값이 `dev-internal-key-change-me`다. 운영에서는
-`.env`의 `INTERNAL_API_KEY`를 반드시 바꿔야 하며, 그 자체가 인증·인가 체계를
+**한계 — Kafka 경로는 인증이 없다.** writer의 `ImageAnalyzedConsumer`는
+`image.analyzed` 토픽을 읽어 캡처 행을 직접 만든다. compose가 Kafka를 `9092:9092`로
+`PLAINTEXT` 인증 없이 게시하므로, 호스트에 접근할 수 있으면 키 없이 메시지를 넣어
+행을 쓸 수 있다. 이번 작업은 HTTP 경로만 다뤘고 이것은 남은 구멍이다.
+
+**한계 — 단일 공유 비밀.** compose는 `INTERNAL_API_KEY`를 필수로 요구하므로
+(`${INTERNAL_API_KEY:?...}`) 값을 안 주면 `docker compose up`이 실패한다. 조용히 약한
+기본값으로 뜨지 않게 하려는 것이다. 다만 공유 비밀 하나가 인증·인가 체계를
 대신하지는 못한다. 서비스 계정이나 mTLS로 가는 것은 별개 작업이다.

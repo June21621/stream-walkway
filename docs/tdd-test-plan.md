@@ -159,11 +159,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../command/GeometryValidatorTest.java` | 순수 단위 테스트 | 8 | 8 | 0 | 0 |
 | `src/test/.../command/GeometryColumnConstraintTest.java` | 제약조건 검증 | 5 | 5 | 0 | 0 |
 | `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 | 0 |
-| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
+| `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | 6 | 0 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
-| `src/test/.../security/InternalKeyFilterTest.java` | 서블릿 목 단위 테스트 | 5 | 5 | 0 | 0 |
+| `src/test/.../security/InternalKeyFilterTest.java` | 서블릿 목 단위 테스트 | 6 | 6 | 0 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 | 8 | 8 | 0 | 0 |
-| **합계** | | **92** | **91** | **1** | **0** |
+| **합계** | | **94** | **93** | **1** | **0** |
 
 ---
 
@@ -191,11 +191,11 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | youtube-service | 47 | 47 | 0 | 0 |
 | ml-service | 28 | 28 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
-| writer | 92 | 91 | 1 | 0 |
+| writer | 94 | 93 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **295** | **293** | **2** | **0** |
+| **합계** | **297** | **295** | **2** | **0** |
 
-> **직전 갱신 대비 변화(2026-09-03 두 번째)**: writer의 `/internal/**`에 `X-Internal-Key` 검사를 넣었다(`InternalKeyFilter`). 그전까지 이 검사는 게이트웨이에만 있었는데 writer 포트가 호스트로 열려 있어 우회가 가능했다. writer 86 → 92(필터 5 + 컨트롤러 배선 401 1), backend 54 → 55(`writerRestClient`가 헤더를 싣는지 확인). 기존 writer 컨트롤러 테스트 9개에는 키 헤더를 추가했다 — 이제 그것이 실제 계약이다.
+> **직전 갱신 대비 변화(2026-09-03 두 번째)**: writer의 `/internal/**`에 `X-Internal-Key` 검사를 넣었다(`InternalKeyFilter`). 그전까지 이 검사는 게이트웨이에만 있었는데 writer 포트가 호스트로 열려 있어 우회가 가능했다. writer 86 → 94, backend 54 → 55(`writerRestClient`가 헤더를 싣는지 확인). **리뷰가 실제 우회를 재현했다** — 보호 대상을 `/internal/` 접두사로 고르면 `POST /%69nternal/streams`가 필터를 지나쳐 핸들러까지 닿는다(`getRequestURI()`는 디코딩 전 원본, Spring MVC는 디코딩된 경로로 라우팅). 공개 경로만 나열하는 허용 목록으로 뒤집고 회귀 테스트로 고정했다. 기존 writer 컨트롤러 테스트 9개에는 키 헤더를 추가했다 — 이제 그것이 실제 계약이다.
 >
 > **2026-08-28 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 54개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
 >

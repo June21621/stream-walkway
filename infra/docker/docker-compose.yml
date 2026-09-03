@@ -111,7 +111,7 @@ services:
       READER_BASE_URL: http://reader:8080
       WRITER_BASE_URL: http://writer:8080
       YOUTUBE_BASE_URL: http://youtube-service:3000
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -195,7 +195,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY must be set in .env}
     depends_on:
       postgres:
         condition: service_healthy

@@ -15,8 +15,10 @@ class HttpClientConfigTest {
     @Test
     @DisplayName("writerRestClient는 모든 요청에 X-Internal-Key를 싣는다")
     void writerClientSendsInternalKey() {
-        // given - writer의 /internal/**가 이 헤더를 요구한다. 헤더 이름이나
-        // 값이 어긋나면 실기동에서 401이 되는데, 그것을 여기서 잡는다.
+        // given - writer가 이 헤더를 요구한다. 헤더 이름이 어긋나면 실기동에서
+        // 401이 되는데 그것을 여기서 잡는다. 다만 빌더를 직접 부르므로 빈이
+        // 올바른 프로퍼티(${internal.api-key})를 넘기는지까지는 보지 못한다 -
+        // 그쪽은 프로퍼티가 없으면 기동 자체가 실패해서 위험이 낮다.
         RestClient.Builder builder =
                 HttpClientConfig.writerRestClientBuilder("http://writer:8080", "the-key");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
