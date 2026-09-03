@@ -62,6 +62,7 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
     }
 
     let cancelled = false;
+    let observer: ResizeObserver | undefined;
 
     loadSdk()
       .then(() => {
@@ -69,7 +70,10 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
         const { maps } = window.naver;
 
         const map = new maps.Map(ref.current, { zoom: 13 });
-        const bounds = new maps.LatLngBounds();
+
+        // 인자 없는 LatLngBounds() + extend() 는 빈 경계가 전 세계로 잡혀서
+        // fitBounds 가 전국 축척으로 튄다. 좌표에서 직접 min/max 를 구한다.
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
         let drawn = 0;
 
         for (const item of items) {
@@ -84,7 +88,12 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
 
           // WKT는 (경도 위도), 네이버는 (위도, 경도) — 순서가 뒤집힌다.
           const latLngs = coords.map(([lng, lat]) => new maps.LatLng(lat, lng));
-          latLngs.forEach((ll: unknown) => bounds.extend(ll));
+          for (const [lng, lat] of coords) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
           drawn += 1;
 
           const shape =
@@ -95,7 +104,38 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
           maps.Event.addListener(shape, 'click', () => router.push(item.href));
         }
 
-        if (drawn > 0) map.fitBounds(bounds);
+        if (drawn === 0) return;
+
+        const fitToItems = () => {
+          if (minLng === maxLng && minLat === maxLat) {
+            // 지점 하나뿐이면 경계 넓이가 0이라 fitBounds 가 의미 없다.
+            map.setCenter(new maps.LatLng(minLat, minLng));
+            map.setZoom(16);
+          } else {
+            map.fitBounds(
+              new maps.LatLngBounds(
+                new maps.LatLng(minLat, minLng),
+                new maps.LatLng(maxLat, maxLng),
+              ),
+            );
+          }
+        };
+
+        // 컨테이너 폭이 0인 채로 fitBounds 를 부르면 축척 계산이 무너져
+        // 전국 단위(zoom 6)로 튄다. 스타일시트가 적용되기 전에 SDK 로드가
+        // 끝나면 실제로 그 상태가 된다 - 폭이 잡힌 뒤에 한 번만 맞춘다.
+        if (ref.current.clientWidth > 0) {
+          fitToItems();
+        } else {
+          const el = ref.current;
+          observer = new ResizeObserver(() => {
+            if (el.clientWidth > 0) {
+              observer?.disconnect();
+              fitToItems();
+            }
+          });
+          observer.observe(el);
+        }
       })
       .catch((e: Error) => {
         if (!cancelled) setError(e.message);
@@ -103,6 +143,7 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
 
     return () => {
       cancelled = true;
+      observer?.disconnect();
     };
   }, [items, router]);
 
