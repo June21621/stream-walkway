@@ -113,11 +113,17 @@ Frontend → Backend (Gateway) → YouTube Service → ffmpeg 프레임 캡처 �
 git clone https://github.com/June21621/stream-walkway.git
 cd stream-walkway
 
-# 인프라 서비스 시작 (PostgreSQL, Redis, Kafka, MinIO)
-cd infra/docker
-docker-compose up -d
+# 루트에 .env를 만들고 값을 채운다 (git 추적 대상 아님)
+# 필수 항목: POSTGRES_*, REDIS_PASSWORD, MINIO_*, 그리고 INTERNAL_API_KEY
+#   INTERNAL_API_KEY는 backend와 writer가 공유하는 내부 API 비밀이다.
+#   값이 없으면 compose가 기동을 거부한다 - 약한 기본값으로 조용히 뜨지 않게 하려는 것.
+#   아무 난수면 된다:  openssl rand -base64 24
 
-# 각 서비스 실행 (추후 업데이트 예정)
+# 전체 스택 기동 (9개 컨테이너)
+bash infra/scripts/dev-up.sh
+
+# 내릴 때 (볼륨은 남는다)
+bash infra/scripts/dev-down.sh
 ```
 
 > ⚠️ 2026-08-22 이전에 만든 Postgres 볼륨이 있다면 `docker compose down -v` 로 지운 뒤 다시 올려주세요.
