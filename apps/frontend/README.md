@@ -217,3 +217,24 @@ NCP 콘솔 → Maps → Application 등록 → **Web Dynamic Map** 활성화 →
 `parseWkt()` 는 `POINT EMPTY` / `LINESTRING EMPTY` 를 예외 대신 빈 배열로 준다.
 빌드 타임에 그리는 화면이라 예외를 던지면 빌드 전체가 깨진다 —
 한 행을 못 그리는 것과 배포가 막히는 건 다르다.
+
+---
+
+## postbuild: RSC 페이로드 평탄화
+
+`npm run build` 뒤에 `scripts/flatten-rsc-payloads.mjs` 가 자동으로 돈다.
+Next 16.3.3 정적 export 의 파일명 불일치를 우회하는 스크립트다.
+
+클라이언트 라우터(`next/link` 프리페치)는 RSC 페이로드를 점으로 이은 이름으로
+요청하는데, 익스포터는 그 점을 디렉터리 구분자로 써서 중첩 경로에 쓴다.
+
+```
+디스크: out/streams/1/__next.streams/$d$id/__PAGE__.txt
+요청:   out/streams/1/__next.streams.$d$id.__PAGE__.txt   -> 404
+```
+
+페이지마다 헛요청이 나가고 클라이언트 이동이 전체 페이지 로드로 폴백된다.
+스크립트가 요청하는 이름으로도 복사해 둔다(원본은 남긴다).
+
+**Next 가 고치면 이 스크립트와 `postbuild` 훅을 지우면 된다.**
+빌드 로그에 "평탄화할 페이로드가 없다" 가 뜨면 그 신호다.

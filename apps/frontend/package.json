@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/flatten-rsc-payloads.mjs",
     "preview": "npx serve@latest out",
     "test": "node --test src/lib/api.test.mts src/lib/wkt.test.mts"
   },
