@@ -129,6 +129,20 @@ bash infra/scripts/dev-down.sh
 > ⚠️ 2026-08-22 이전에 만든 Postgres 볼륨이 있다면 `docker compose down -v` 로 지운 뒤 다시 올려주세요.
 > `created_at`/`updated_at` 컬럼이 `TIMESTAMPTZ`로 바뀌어서, 기존 볼륨을 그대로 쓰면 스키마가 갱신되지 않습니다.
 
+## 개발 규약
+
+**코드를 만지기 전에 `CLAUDE.md`를 읽을 것.** 저장소 루트와 각 모듈에 있다.
+빌드 명령, 계층 경계, 그리고 실제로 당했던 함정들이 정리돼 있다.
+
+| 파일 | 내용 |
+|---|---|
+| `CLAUDE.md` | 공통 — 명령, 구조, 작업 방식 |
+| `apps/frontend/CLAUDE.md` | 정적 export 제약, 데이터 페칭, 지도 |
+| `apps/backend/CLAUDE.md` | 게이트웨이 계약, 인증, 에러 변환 |
+| `services/writer/CLAUDE.md` | 검증 순서, DB 제약명, 지오메트리 정책 |
+
+이름은 에이전트용처럼 보이지만 **사람이 손댈 때도 똑같이 필요한 내용**이다.
+
 ## 개발 가이드
 
 자세한 개발 가이드는 [docs/](./docs/) 폴더를 참고하세요.

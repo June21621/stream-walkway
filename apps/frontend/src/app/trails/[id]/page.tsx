@@ -41,7 +41,7 @@ export default async function TrailDetail({
           {captures.map((c) => (
             <li key={c.id}>
               <figure style={{ margin: 0 }}>
-                {/* next/image 최적화는 정적 export에서 꺼져 있다. README 참고 */}
+                {/* next/image 최적화는 정적 export에서 꺼져 있다. CLAUDE.md 참고 */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageUrl(c.image_path)} alt={`캡처 ${c.id}`} loading="lazy" />
                 <figcaption>

@@ -1,7 +1,7 @@
 import type { Capture, Stream, Trail } from './types';
 
 // 빌드 타임에 호출된다. 실패하면 빌드가 깨지는 게 의도된 동작이다 —
-// 데이터를 못 받은 채로 사이트가 교체되는 것보다 낫다. README 참고.
+// 데이터를 못 받은 채로 사이트가 교체되는 것보다 낫다. CLAUDE.md 참고.
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 const IMAGE_BASE = process.env.NEXT_PUBLIC_IMAGE_BASE_URL;
