@@ -30,6 +30,9 @@ cd services/writer && ./mvnw clean test
 bash infra/scripts/dev-up.sh
 bash infra/scripts/dev-down.sh     # 볼륨은 남는다
 
+# 데모 데이터 (한강/중랑천/우이천 + 관측 지점 9개)
+python infra/scripts/seed-demo-data.py
+
 # 프론트엔드
 cd apps/frontend && npm run build   # 백엔드 스택이 떠 있어야 한다 (아래 참고)
 cd apps/frontend && npm test
@@ -37,6 +40,14 @@ cd apps/frontend && npm test
 # 그 외
 cd apps/youtube-service && npm test
 ```
+
+**DELETE 엔드포인트가 없다.** 데이터를 갈아엎으려면 볼륨을 지우는 수밖에 없다
+(`docker compose --env-file .env -f infra/docker/docker-compose.yml down -v`).
+시드 스크립트는 기존 데이터를 지우지 않고 추가만 한다.
+
+**Windows 셸에서 한글을 curl -d 로 보내지 말 것.** CP949 로 나가서 백엔드가
+`Invalid UTF-8 middle byte` 로 400 을 낸다. 시드 스크립트가 bash 가 아니라
+Python 인 이유다.
 
 **프론트엔드 빌드는 백엔드에 의존한다.** 빌드 타임에 게이트웨이 API를 호출해
 정적 HTML을 굽기 때문에, 스택이 안 떠 있으면 빌드가 실패한다. 의도된 동작이다.
