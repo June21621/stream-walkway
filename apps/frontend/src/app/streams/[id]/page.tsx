@@ -27,7 +27,7 @@ export default async function StreamDetail({
         <h1 className="page-title">{stream.name}</h1>
       </div>
 
-      <dl className="facts" style={{ marginTop: '2rem' }}>
+      <dl className="facts">
         <div>
           <dt>등록</dt>
           <dd className="mono">{formatDate(stream.created_at)}</dd>
@@ -47,7 +47,7 @@ export default async function StreamDetail({
       <section className="section">
         <div className="section__head">
           <h2>지점 배치</h2>
-          <span className="section__count">마커를 누르면 해당 지점으로</span>
+          <span className="section__note">마커를 누르면 해당 지점으로</span>
         </div>
 
         <div className="map-frame">

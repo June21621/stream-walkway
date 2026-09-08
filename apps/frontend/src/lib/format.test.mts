@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { formatDate, formatDateTime, summarizeWkt } = await import('./format.ts');
+const { formatDate, formatDateTime } = await import('./format.ts');
 
 test('UTC 시각을 KST 로 옮겨 찍는다', () => {
   // 2026-09-08T01:45:00Z 는 서울에서 같은 날 10:45 다.
@@ -23,19 +23,4 @@ test('빌드 머신 타임존과 무관하게 같은 값이 나온다', () => {
 test('파싱 안 되는 문자열은 원문 그대로', () => {
   assert.equal(formatDateTime('언젠가'), '언젠가');
   assert.equal(formatDate(''), '');
-});
-
-test('POINT 는 좌표 한 쌍만 보여준다', () => {
-  assert.equal(summarizeWkt('POINT(127.01 37.5)'), '127.01 37.5');
-});
-
-test('좌표가 셋 이상이면 앞 두 개만 쓰고 나머지는 개수로 줄인다', () => {
-  assert.equal(
-    summarizeWkt('LINESTRING(126.97 37.55, 126.98 37.56, 126.99 37.57, 127.0 37.58)'),
-    '126.97 37.55, 126.98 37.56 외 2개 지점',
-  );
-});
-
-test('괄호가 없으면 원문 그대로', () => {
-  assert.equal(summarizeWkt('POINT EMPTY'), 'POINT EMPTY');
 });

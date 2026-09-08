@@ -46,9 +46,6 @@ export default function RootLayout({
               하천 산책로 관측
               <span className="wordmark__sub">stream walkway</span>
             </Link>
-            <nav>
-              <Link href="/">하천 목록</Link>
-            </nav>
           </div>
         </header>
 

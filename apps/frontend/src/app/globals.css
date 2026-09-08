@@ -162,16 +162,6 @@ code,
   color: var(--text-faint);
 }
 
-.site-header nav a {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  text-decoration: none;
-}
-
-.site-header nav a:hover {
-  color: var(--accent);
-}
-
 .site-main {
   max-width: var(--page);
   margin-inline: auto;
@@ -275,7 +265,9 @@ code,
   font-size: 1.0625rem;
 }
 
-.section__count {
+/* 오른쪽 끝에 붙는 개수. 값이 숫자일 때만 쓴다(mono 를 같이 붙인다). */
+.section__count,
+.section__note {
   font-size: 0.8125rem;
   color: var(--text-faint);
 }
@@ -408,7 +400,7 @@ code,
 .facts {
   display: grid;
   gap: 0.875rem 2.5rem;
-  margin: 0;
+  margin: 2rem 0 0;
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 
@@ -531,6 +523,7 @@ code,
 .callout {
   display: grid;
   gap: 0.25rem;
+  margin: 0 0 1.5rem;
   padding: 0.875rem 1.125rem;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
   border-radius: var(--radius);

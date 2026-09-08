@@ -28,7 +28,13 @@ export default async function TrailDetail({
   ]);
 
   // 응답 순서에 기대지 않고 최신순을 여기서 확정한다. 맨 앞 한 장을 크게 쓴다.
-  const sorted = [...captures].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  //
+  // 문자열 사전순으로 비교하면 안 된다. Instant.toString() 은 나노초가 0이면
+  // 소수부를 통째로 생략해서, 같은 초 안에서 "...00Z" 와 "...00.1Z" 를 비교할 때
+  // 'Z'(90) > '.'(46) 이 되어 순서가 뒤집힌다.
+  const sorted = [...captures].sort(
+    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+  );
   const [latest, ...rest] = sorted;
 
   return (
@@ -45,7 +51,7 @@ export default async function TrailDetail({
         </p>
       </div>
 
-      <dl className="facts" style={{ marginTop: '2rem' }}>
+      <dl className="facts">
         <div>
           <dt>상태</dt>
           <dd>
@@ -82,7 +88,7 @@ export default async function TrailDetail({
         ) : (
           <>
             {ANALYSIS_IS_STUB && (
-              <div className="callout" style={{ marginBottom: '1.5rem' }}>
+              <div className="callout">
                 <strong>분석 모델 미연동</strong>
                 <p>상태와 신뢰도는 파이프라인 검증용 고정값입니다. 실제 판정이 아닙니다.</p>
               </div>

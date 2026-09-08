@@ -48,13 +48,3 @@ export function formatDate(iso: string): string {
   if (!f) return iso;
   return `${f.year}-${f.month}-${f.day}`;
 }
-
-/** WKT 를 화면용으로 줄인다. 좌표가 길면 앞 두 쌍만 보이고 나머지는 개수로. */
-export function summarizeWkt(wkt: string): string {
-  const inner = /\(([^)]*)\)/.exec(wkt)?.[1]?.trim();
-  if (!inner) return wkt;
-
-  const points = inner.split(',').map((p) => p.trim()).filter(Boolean);
-  if (points.length <= 2) return points.join(', ');
-  return `${points.slice(0, 2).join(', ')} 외 ${points.length - 2}개 지점`;
-}

@@ -36,7 +36,7 @@ export default async function Home() {
       <section className="section">
         <div className="section__head">
           <h2>관측 범위</h2>
-          <span className="section__count">선을 누르면 해당 하천으로</span>
+          <span className="section__note">선을 누르면 해당 하천으로</span>
         </div>
 
         <div className="map-frame">
