@@ -156,7 +156,10 @@ python -m http.server 4000 --directory out
 - **쓰기 API는 붙일 수 없다.** `POST /api/streams`, `/api/trails`, `/api/captures/jobs` 는
   `X-Internal-Key` 를 요구하는데, 정적 사이트에 공유 비밀을 박을 수 없다.
   관리 기능이 필요하면 별도 경로를 설계해야 한다
-- **`road_status` 는 항상 `"양호"`, `confidence` 는 항상 `0.95`** — ml-service에 실제 모델이 없다
+- **`road_status` 는 항상 `"양호"`, `confidence` 는 항상 `0.95`** — ml-service에 실제 모델이 없다.
+  값만 보면 진짜 분석처럼 읽히므로 `/trails/[id]` 에 "분석 모델 미연동" 안내를 띄운다.
+  **실제 모델이 붙으면 `ANALYSIS_IS_STUB` 상수와 그 안내를 지울 것** —
+  남겨두면 진짜 분석을 가짜라고 말하는 상태가 된다
 - **Trail 에 `name` 이 없다.** writer는 `name` 을 검증하는데 `TrailView`/게이트웨이 응답에는
   없어서 화면에는 `camera_number` 를 쓴다. 백엔드 쪽 갭
 
