@@ -50,7 +50,13 @@ function loadSdk(): Promise<void> {
   });
 }
 
-export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]; height?: string }) {
+/** 지도에 그리는 색은 스타일시트의 강조색 하나를 그대로 가져다 쓴다. */
+function accentColor(): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  return v || '#1c6b60';
+}
+
+export default function NaverMap({ items, height = '26rem' }: { items: MapItem[]; height?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +76,7 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
         const { maps } = window.naver;
 
         const map = new maps.Map(ref.current, { zoom: 13 });
+        const accent = accentColor();
 
         // 인자 없는 LatLngBounds() + extend() 는 빈 경계가 전 세계로 잡혀서
         // fitBounds 가 전국 축척으로 튄다. 좌표에서 직접 min/max 를 구한다.
@@ -98,8 +105,23 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
 
           const shape =
             latLngs.length === 1
-              ? new maps.Marker({ map, position: latLngs[0], title: item.label })
-              : new maps.Polyline({ map, path: latLngs, strokeWeight: 5, strokeOpacity: 0.8 });
+              ? new maps.Marker({
+                  map,
+                  position: latLngs[0],
+                  title: item.label,
+                  // 기본 핀은 파란색이라 페이지의 강조색과 어긋난다.
+                  icon: {
+                    content: '<div class="map-pin"></div>',
+                    anchor: new maps.Point(9, 9),
+                  },
+                })
+              : new maps.Polyline({
+                  map,
+                  path: latLngs,
+                  strokeColor: accent,
+                  strokeWeight: 4,
+                  strokeOpacity: 0.85,
+                });
 
           maps.Event.addListener(shape, 'click', () => router.push(item.href));
         }
@@ -147,13 +169,17 @@ export default function NaverMap({ items, height = '24rem' }: { items: MapItem[]
     };
   }, [items, router]);
 
+  // 지도가 못 떠도 페이지는 살아 있어야 한다. 하천/지점 선택은 아래 목록으로 된다.
   if (error) {
     return (
-      <p className="empty" style={{ padding: '1rem', border: '1px dashed currentColor', borderRadius: 6 }}>
-        지도를 불러오지 못했습니다 — {error}
-      </p>
+      <div className="map-placeholder">
+        <strong>지도를 불러오지 못했습니다.</strong>
+        <span>{error}</span>
+        <span>아래 목록에서 선택할 수 있습니다.</span>
+      </div>
     );
   }
 
-  return <div ref={ref} style={{ height, borderRadius: 6, overflow: 'hidden' }} />;
+  // 모서리와 테두리는 바깥의 .map-frame 이 그린다.
+  return <div ref={ref} style={{ height }} />;
 }

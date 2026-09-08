@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import NaverMap from '@/components/NaverMap';
+import StatusChip from '@/components/StatusChip';
 import { getStream, getStreams, getTrails } from '@/lib/api';
+import { formatDate } from '@/lib/format';
 
 export async function generateStaticParams() {
   const streams = await getStreams();
@@ -16,48 +18,90 @@ export default async function StreamDetail({
   const [stream, trails] = await Promise.all([getStream(id), getTrails(Number(id))]);
 
   return (
-    <main>
-      <nav>
+    <main className="site-main">
+      <nav className="breadcrumb">
         <Link href="/">← 하천 목록</Link>
       </nav>
 
-      <h1>{stream.name}</h1>
-      <dl>
-        <dt>경로</dt>
-        <dd>
-          <code>{stream.location}</code>
-        </dd>
-        <dt>등록</dt>
-        <dd>{stream.created_at}</dd>
+      <div className="page-head">
+        <h1 className="page-title">{stream.name}</h1>
+      </div>
+
+      <dl className="facts" style={{ marginTop: '2rem' }}>
+        <div>
+          <dt>등록</dt>
+          <dd className="mono">{formatDate(stream.created_at)}</dd>
+        </div>
+        <div>
+          <dt>관측 지점</dt>
+          <dd className="mono">{trails.length}</dd>
+        </div>
+        <div className="facts__wide">
+          <dt>경로 좌표</dt>
+          <dd>
+            <code className="wkt">{stream.location}</code>
+          </dd>
+        </div>
       </dl>
 
-      <h2>카메라 관측 지점 ({trails.length})</h2>
+      <section className="section">
+        <div className="section__head">
+          <h2>지점 배치</h2>
+          <span className="section__count">마커를 누르면 해당 지점으로</span>
+        </div>
 
-      <NaverMap
-        items={[
-          { id: stream.id, label: stream.name, wkt: stream.location, href: `/streams/${stream.id}/` },
-          ...trails.map((t) => ({
-            id: t.id,
-            label: t.camera_number,
-            wkt: t.location,
-            href: `/trails/${t.id}/`,
-          })),
-        ]}
-      />
+        <div className="map-frame">
+          <NaverMap
+            items={[
+              {
+                id: stream.id,
+                label: stream.name,
+                wkt: stream.location,
+                href: `/streams/${stream.id}/`,
+              },
+              ...trails.map((t) => ({
+                id: t.id,
+                label: t.camera_number,
+                wkt: t.location,
+                href: `/trails/${t.id}/`,
+              })),
+            ]}
+          />
+          <p className="map-frame__caption">
+            선은 하천 경로, 마커는 카메라가 선 자리입니다.
+          </p>
+        </div>
+      </section>
 
-      {trails.length === 0 ? (
-        <p className="empty">등록된 관측 지점이 없습니다.</p>
-      ) : (
-        <ul className="cards" style={{ marginTop: '1.5rem' }}>
-          {trails.map((t) => (
-            <li key={t.id}>
-              <Link href={`/trails/${t.id}/`}>
-                {t.camera_number} · {t.direction} · {t.status}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section className="section">
+        <div className="section__head">
+          <h2>관측 지점</h2>
+          <span className="section__count mono">{trails.length}</span>
+        </div>
+
+        {trails.length === 0 ? (
+          <div className="empty-state">
+            <strong>등록된 관측 지점이 없습니다.</strong>
+            <p>이 하천에는 아직 카메라가 배치되지 않았습니다.</p>
+          </div>
+        ) : (
+          <ul className="card-grid">
+            {trails.map((t) => (
+              <li key={t.id}>
+                <Link href={`/trails/${t.id}/`} className="card">
+                  <span className="card__title">카메라 {t.camera_number}</span>
+                  <span className="card__meta">
+                    <span>
+                      방향 <b>{t.direction}</b>
+                    </span>
+                  </span>
+                  <StatusChip status={t.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

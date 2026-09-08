@@ -190,6 +190,44 @@ Next가 이를 찾지 못하고 "TypeScript가 없다"고 판단해 **빌드 도
 
 ---
 
+## 시각 언어
+
+시각 규칙은 `src/app/globals.css` 상단 주석에 세 줄로 박아뒀다. 요약하면 이렇다.
+
+- **강조색은 `--accent` 하나뿐이다.** 링크·상태 칩·지도 폴리라인·마커가 전부 이 값을 쓴다.
+  지도 색은 JS 에서 `getComputedStyle` 로 이 변수를 읽어간다(`NaverMap.tsx`) — 색을 바꾸려면
+  CSS 토큰만 고치면 되고 컴포넌트는 손대지 않는다
+- **모서리는 두 단계뿐이다.** 면(카드·지도·이미지)은 `--radius`, 칩은 `--radius-sm`
+- **테마는 시스템 설정을 따르고 페이지 전체가 한 테마로 간다.** 섹션별로 뒤집지 않는다.
+  다크 값은 `prefers-color-scheme` 블록에서 토큰만 갈아끼운다
+
+모션은 호버/전환뿐이고 `prefers-reduced-motion: reduce` 에서 전부 멈춘다.
+스크롤 연출은 넣지 않았다 — 조회 화면이라 얻는 게 없고 정적 export 번들만 무거워진다.
+
+### mono 클래스에 한글을 넣지 말 것
+
+`.mono`(그리고 `code`)는 IBM Plex Mono 인데 **한글 글리프가 없다.** 한글이 섞이면
+그 글자만 sans 로 폴백되는데, mono 쪽 자간이 그대로 남아 `데 이 터  기 준` 처럼 벌어진다.
+
+라벨은 sans 로 두고 값만 `<span className="mono">` 로 감쌀 것.
+
+```tsx
+신뢰도 <span className="mono">95%</span>   // O
+<span className="mono">신뢰도 95%</span>   // X
+```
+
+### 폰트
+
+`next/font/google` 로 IBM Plex Sans KR(400/600) + IBM Plex Mono(400)를 셀프호스팅한다.
+
+`subsets: ['latin']` 인데 한글이 나오는 이유는, 이 옵션이 **preload 대상만 고르기 때문**이다.
+next 는 구글이 준 CSS 의 `@font-face` 를 전부 내려받아 `_next/static/media` 에 넣는다
+(빌드 후 195개). 브라우저는 `unicode-range` 로 실제 쓰인 글자가 든 청크만 가져간다.
+
+**빌드에 네트워크가 필요하다.** fonts.googleapis.com 이 막힌 환경에서는 빌드가 실패한다.
+
+---
+
 ## 지도 (네이버)
 
 지도를 하천 선택의 입구로 쓴다. `/` 상단에 지도, 아래에 하천 목록을 같이 둔다.
@@ -205,6 +243,11 @@ NCP 콘솔 → Maps → Application 등록 → **Web Dynamic Map** 활성화 →
 **서비스 URL(도메인)을 반드시 등록할 것.** 등록 안 된 도메인에서는 인증 실패로
 지도가 뜨지 않는다. 최소 `http://localhost:3000`(dev), `http://localhost:4000`(preview),
 그리고 배포 도메인.
+
+> 2026-09-08 확인: `:3000` 은 지도가 뜨는데 `:4000` 은 지도 자리에
+> "네이버 지도 Open API 인증이 실패했습니다" 타일이 깔린다. 즉 **preview 포트가
+> 콘솔에 등록돼 있지 않다.** 정적 산출물을 눈으로 확인할 때 지도만 안 뜨면
+> 코드를 의심하기 전에 이걸 먼저 볼 것.
 
 키는 `NEXT_PUBLIC_` 이라 빌드 시 번들에 박히고 브라우저에서 보인다.
 이게 웹 지도 API의 정상 사용법이며, **도메인 화이트리스트가 유일한 보호막**이다.
@@ -242,3 +285,13 @@ Next 16.3.3 정적 export 의 파일명 불일치를 우회하는 스크립트�
 
 **Next 가 고치면 이 스크립트와 `postbuild` 훅을 지우면 된다.**
 빌드 로그에 "평탄화할 페이로드가 없다" 가 뜨면 그 신호다.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
