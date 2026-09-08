@@ -24,7 +24,8 @@ function createPipeline({ capture, storage, jobs, publish }) {
 
       let buffer;
       try {
-        buffer = await capture(sourceUrl);
+        // trailId를 넘겨야 파일 어댑터가 지점마다 다른 프레임을 뽑는다.
+        buffer = await capture(sourceUrl, { trailId });
       } catch (err) {
         const msg = errorMessage(err);
         throw new Error(msg.startsWith('capture failed') ? msg : `capture failed: ${msg}`);

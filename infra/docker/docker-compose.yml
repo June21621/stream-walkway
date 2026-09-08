@@ -145,6 +145,12 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-captures}
       CAPTURE_SOURCE: ${CAPTURE_SOURCE:-testsrc}
       CAPTURE_FILE_PATH: ${CAPTURE_FILE_PATH:-}
+      CAPTURE_FILE_OFFSET_SEC: ${CAPTURE_FILE_OFFSET_SEC:-0}
+      CAPTURE_FILE_OFFSET_STEP_SEC: ${CAPTURE_FILE_OFFSET_STEP_SEC:-0}
+      CAPTURE_FILE_OFFSET_SPAN_SEC: ${CAPTURE_FILE_OFFSET_SPAN_SEC:-0}
+    volumes:
+      # 직접 촬영한 영상. CAPTURE_SOURCE=file 일 때만 쓰인다.
+      - ../../media:/media:ro
     depends_on:
       kafka:
         condition: service_healthy

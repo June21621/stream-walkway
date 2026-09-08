@@ -41,3 +41,7 @@ docker-compose.override.yml
 
 # SDD 작업용 스크래치 (원장, 브리프, 리뷰 패키지)
 .superpowers/
+
+# 직접 촬영한 영상 (media/README.md 참고)
+media/*
+!media/README.md

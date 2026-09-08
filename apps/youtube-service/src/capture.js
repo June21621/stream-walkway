@@ -68,16 +68,37 @@ function captureFromHls(url, opts) {
   return runFfmpeg(['-i', url, ...OUTPUT_ARGS], opts);
 }
 
+// 영상 하나로 여러 관측 지점을 대신할 때 쓰는 오프셋 계산.
+//
+// 오프셋이 고정이면 모든 지점의 사진이 똑같이 나온다 - 서로 다른 장소를 찍는
+// 카메라라는 설정과 어긋난다. trailId로 흩어서 지점마다 다른 구간이 잡히게 한다.
+// 같은 지점은 언제 찍어도 같은 프레임이다(고정 카메라와 같은 성질).
+//
+// STEP/SPAN이 없으면 예전처럼 base만 쓴다.
+function fileOffsetFor(env, trailId) {
+  const base = Number(env.CAPTURE_FILE_OFFSET_SEC || 0);
+  const step = Number(env.CAPTURE_FILE_OFFSET_STEP_SEC || 0);
+  const span = Number(env.CAPTURE_FILE_OFFSET_SPAN_SEC || 0);
+
+  if (!step || !span || trailId === undefined || trailId === null) return base;
+  return base + ((step * Number(trailId)) % span);
+}
+
 // CAPTURE_SOURCE로 어댑터를 고른다. YouTube 어댑터는 없다 —
 // 이용약관 위반이라 설계 단계에서 만들지 않기로 했다.
+//
+// 어댑터는 (url, ctx)를 받는다. ctx는 선택이며 파일 어댑터만 쓴다 -
+// 스트림·테스트패턴은 지점별로 달라질 것이 없다.
 function createCapture(env = process.env) {
   const source = env.CAPTURE_SOURCE || 'testsrc';
 
   if (source === 'testsrc') return (_url) => captureFromTestPattern();
-  if (source === 'file') return (_url) => captureFromFile(env.CAPTURE_FILE_PATH, Number(env.CAPTURE_FILE_OFFSET_SEC || 0));
+  if (source === 'file') {
+    return (_url, ctx = {}) => captureFromFile(env.CAPTURE_FILE_PATH, fileOffsetFor(env, ctx.trailId));
+  }
   if (source === 'hls') return (url) => captureFromHls(url);
 
   throw new Error(`unknown CAPTURE_SOURCE: ${source} (supported: testsrc, file, hls)`);
 }
 
-module.exports = { captureFromTestPattern, captureFromFile, captureFromHls, createCapture };
+module.exports = { captureFromTestPattern, captureFromFile, captureFromHls, createCapture, fileOffsetFor };
