@@ -2,24 +2,25 @@
 
 > 기준 API 명세: `docs/api-specs/stream-walkway.postman_collection.json`
 > 작성일: 2026-03-09
-> 최종 갱신: 2026-09-03 — backend에 캡처 트리거(`POST /api/captures/jobs`)와 작업 상태 조회(`GET /api/captures/jobs/{jobId}`)를 추가해 파이프라인 입구를 게이트웨이로 옮겼다. backend 수치만 이날 재측정했다 — youtube-service는 2026-08-28, 나머지 모듈은 2026-08-27 실측값을 그대로 유지한다(아래 "측정 방법 및 환경" 참고).
+> 최종 갱신: 2026-09-09 — Kafka DLQ(`image.downloaded.dlq`, `image.analyzed.dlq`)를 ml-service와 writer 양쪽에 추가하고, Docker 스택을 실제로 띄워 재측정했다. ml-service·writer 수치만 이날 재측정했다 — backend는 2026-09-03, youtube-service는 2026-08-28, 나머지 모듈은 2026-08-27 실측값을 그대로 유지한다(아래 "측정 방법 및 환경" 참고).
 
 ---
 
 ## 측정 방법 및 환경
 
-이 문서의 테스트 수치는 추정이 아니라 실제로 실행한 결과입니다. shared/reader/writer/ml-service는 2026-08-27 실측값을, youtube-service는 2026-08-28 실측값을 유지하며, backend만 2026-09-03에 재측정했다(이 브랜치가 유일하게 건드린 모듈이라 다른 모듈은 재측정 대상이 아니다). 2026-08-28 재측정 시점에는 Docker가 실행 중이 아니어서 writer의 Testcontainers 테스트가 다시 스킵되는 것을 확인했지만 — 이는 회귀가 아니라 아래 "Docker" 항목에 적힌 환경 의존성이 재현된 것이며, writer 행은 Docker가 떠 있던 2026-08-27 실측값(85 GREEN / 1 RED / 0 SKIP)을 그대로 둔다.
+이 문서의 테스트 수치는 추정이 아니라 실제로 실행한 결과입니다. shared/reader는 2026-08-27 실측값을, youtube-service는 2026-08-28 실측값을, backend는 2026-09-03 실측값을 유지하며, ml-service와 writer만 2026-09-09에 재측정했다(Kafka DLQ 작업이 건드린 모듈이라 이 둘만 재측정 대상이다). 2026-09-09 측정은 **Docker 스택이 떠 있는 상태**(`bash infra/scripts/dev-up.sh`로 9개 컨테이너 기동, DLQ 실기동 검증과 같은 세션)에서 이뤄졌다 — writer의 `TrailCommandHandlerPostgresTest` 5개가 SKIP이 아니라 실제로 돌았다. 상세: `docs/superpowers/specs/2026-09-09-kafka-dlq-verification.md`.
 
 | 대상 | 실행 명령 | 집계 방식 | 최종 실측일 |
 |------|---------|---------|---------|
-| shared / reader / writer / backend | `./services/writer/mvnw -o test -fae` (루트 애그리게이터가 4개 모듈 모두 빌드) | `target/surefire-reports/*.xml` 파싱 | 2026-08-27 |
+| shared / reader / backend | `./services/writer/mvnw -o test -fae` (루트 애그리게이터가 4개 모듈 모두 빌드) | `target/surefire-reports/*.xml` 파싱 | 2026-08-27 / 2026-09-03(backend) |
 | youtube-service | `npm test` (`jest --testPathPattern=tests/`) | jest JSON 리포터 | 2026-08-28 |
-| ml-service | `python -m pytest tests -q` | pytest 요약 | 2026-08-27 |
+| ml-service | `venv/Scripts/python.exe -m pytest tests -q` | pytest 요약 | 2026-09-09 |
+| writer | `./mvnw clean test`(Docker 기동 상태) | Maven 콘솔 출력(`Tests run:` 라인) 집계 | 2026-09-09 |
 
 **환경 의존 항목** — 아래 두 항목은 코드 결함이 아니라 실행 환경에 따라 갈립니다.
 
-- **Docker**: `TrailCommandHandlerPostgresTest` 5개는 Docker가 실행 중이어야 통과한다. 2026-08-27에는 Docker Desktop을 띄우고 재실행해 **5개 전부 통과**를 확인했다(실 PostgreSQL 제약 이름과 예외 매핑이 하드코딩된 추정대로 맞음). 아래 표는 그 실측값이다. 2026-08-28에는 Docker가 꺼져 있어 같은 5개가 다시 스킵되는 것을 확인했는데, 이는 코드 회귀가 아니라 이 환경 의존성 자체이므로 표 값은 바꾸지 않았다.
-- **DB 미기동 (미해소)**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패합니다. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없습니다. Docker를 띄운 상태에서도 동일하게 실패하므로 **Docker 유무와 무관한 테스트 설정 문제**입니다. 2026-08-28 재실행에서도 동일하게 재현되어 회귀가 없음을 확인했다.
+- **Docker**: `TrailCommandHandlerPostgresTest` 5개는 Docker가 실행 중이어야 통과한다. 2026-08-27과 2026-09-09 모두 Docker Desktop을 띄운 상태에서 재실행해 **5개 전부 통과**를 확인했다(실 PostgreSQL 제약 이름과 예외 매핑이 하드코딩된 추정대로 맞음). 2026-08-28에는 Docker가 꺼져 있어 같은 5개가 스킵됐는데, 이는 코드 회귀가 아니라 이 환경 의존성 자체다. **이 문서의 writer 행은 항상 Docker가 떠 있는 상태의 실측값을 우선한다** — 아래 표가 2026-09-09 값(SKIP 0)인 이유다.
+- **DB 미기동 (미해소)**: `ReaderApplicationTests.contextLoads`, `WriterApplicationTests.contextLoads` 2개가 실패합니다. 원인은 `Unable to determine Dialect without JDBC metadata` — `@SpringBootTest`가 실제 DataSource를 요구하는데 테스트 프로파일에 JDBC URL이 없습니다. Docker를 띄운 상태에서도 동일하게 실패하므로 **Docker 유무와 무관한 테스트 설정 문제**입니다. 2026-08-28, 2026-09-09 재실행에서도 동일하게 재현되어 회귀가 없음을 확인했다(writer는 2026-09-09에도 Docker가 떠 있는 채로 재확인).
 
 즉 아래 표의 RED 2개는 모두 reader·writer의 테스트 설정 문제이며, youtube-service의 RED는 이번 구현으로 0개가 되었다.
 
@@ -110,15 +111,19 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 |------|------|---------|
 | `main.py` — `GET /health` | 엔드포인트 | 구현 완료. `{status, model, uptime_sec}` 반환. **`model: "loaded"`는 명세가 요구하는 고정 문자열이며 실제 모델 적재 상태가 아니다** |
 | `main.py` — `POST /analyze` | 엔드포인트 | 구현 완료. 202 + `{jobId, status, image_path}`. 접수만 하고 실제 분석 경로에 일을 넣지 않는다(의도된 결정, 계획 문서 참고) |
-| `main.py` — `consume()` | Kafka 소비/발행 | 메시지별 `try/except` 추가로 잘못된 메시지가 루프를 죽이지 않는다. **분석 결과는 여전히 고정값** (`roadStatus: "양호"`, `confidence: 0.95`) — 실제 ML 모델은 미적재 |
+| `main.py` — `consume()` | Kafka 소비/발행 | 메시지별 `try/except` 추가로 잘못된 메시지가 루프를 죽이지 않는다. 파싱/처리 실패 시 `publish_dead_letter(producer, "image.downloaded", "ml", msg.value, exc)`로 `image.downloaded.dlq`에 발행한다. **분석 결과는 여전히 고정값** (`roadStatus: "양호"`, `confidence: 0.95`) — 실제 ML 모델은 미적재 |
+| `dlq.py` | DLQ 발행 | 구현 완료. `dlq_topic()`(소스 토픽에 `.dlq` 접미사), `build_dead_letter()`(5필드 JSON 조립, `reason` 500자 절단), `publish_dead_letter()` |
 
 #### 테스트 코드
 
 | 파일 | 방식 | 전체 | GREEN | RED |
 |------|------|-----|-------|-----|
 | `tests/test_main.py` | pytest + FastAPI TestClient | 12 | 12 | 0 |
-| `tests/test_consume.py` | pytest + AsyncMock | 16 | 16 | 0 |
-| **합계** | | **28** | **28** | **0** |
+| `tests/test_consume.py` | pytest + AsyncMock | 21 | 21 | 0 |
+| `tests/test_dlq.py` | pytest | 10 | 10 | 0 |
+| **합계** | | **43** | **43** | **0** |
+
+> **2026-09-09 변화**: Kafka DLQ 작업으로 `dlq.py`가 신설되고 `test_dlq.py`(10개)가 추가됐다. `consume()`의 예외 처리 경로에 DLQ 발행을 엮으면서 `test_consume.py`가 16개에서 21개로 늘었다. 28 → 43(+15).
 
 ---
 
@@ -158,12 +163,15 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `src/test/.../command/CaptureCommandHandlerTest.java` | Mockito 단위 테스트 | 4 | 4 | 0 | 0 |
 | `src/test/.../command/GeometryValidatorTest.java` | 순수 단위 테스트 | 8 | 8 | 0 | 0 |
 | `src/test/.../command/GeometryColumnConstraintTest.java` | 제약조건 검증 | 5 | 5 | 0 | 0 |
-| `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 5 | 5 | 0 | 0 |
+| `src/test/.../consumer/DeadLetterPublisherTest.java` | Mockito 단위 테스트 | 10 | 10 | 0 | 0 |
+| `src/test/.../consumer/ImageAnalyzedConsumerTest.java` | Mockito 단위 테스트 | 9 | 9 | 0 | 0 |
 | `src/test/.../controller/StreamControllerTest.java` | `@WebMvcTest` + `@MockBean` | 6 | 6 | 0 | 0 |
 | `src/test/.../controller/TrailControllerTest.java` | `@WebMvcTest` + `@MockBean` | 5 | 5 | 0 | 0 |
 | `src/test/.../security/InternalKeyFilterTest.java` | 서블릿 목 단위 테스트 | 6 | 6 | 0 | 0 |
 | `src/test/.../repository/CaptureRepositoryTest.java` | `@DataJpaTest` + H2 | 8 | 8 | 0 | 0 |
-| **합계** | | **94** | **93** | **1** | **0** |
+| **합계** | | **108** | **107** | **1** | **0** |
+
+> **2026-09-09 변화**: Kafka DLQ 작업으로 `DeadLetterPublisherTest`(10개, 신규 파일)가 추가되고 `ImageAnalyzedConsumerTest`가 5개에서 9개로 늘었다(+4, `catch`에서 `publish("image.analyzed", "writer", message, e)` 호출 검증). 94 → 108(+14). Docker가 떠 있는 상태로 `./mvnw clean test`를 돌려 `TrailCommandHandlerPostgresTest` 5개도 SKIP 없이 실제로 통과했다 — 위 표는 그 값이다. `application.yaml`에 프로듀서 직렬화(`StringSerializer`, `acks: all`)를 명시한 것도 이번 갱신이다.
 
 ---
 
@@ -183,19 +191,21 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 
 ---
 
-## 테스트 현황 요약 (backend·writer는 2026-09-03, youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
+## 테스트 현황 요약 (ml-service·writer는 2026-09-09, backend는 2026-09-03, youtube-service는 2026-08-28, 나머지는 2026-08-27 실측)
 
 | 서비스 | 전체 테스트 수 | GREEN | RED | SKIP |
 |--------|-------------|-------|-----|------|
 | backend | 55 | 55 | 0 | 0 |
 | youtube-service | 47 | 47 | 0 | 0 |
-| ml-service | 28 | 28 | 0 | 0 |
+| ml-service | 43 | 43 | 0 | 0 |
 | reader | 41 | 40 | 1 | 0 |
-| writer | 94 | 93 | 1 | 0 |
+| writer | 108 | 107 | 1 | 0 |
 | shared | 32 | 32 | 0 | 0 |
-| **합계** | **297** | **295** | **2** | **0** |
+| **합계** | **326** | **324** | **2** | **0** |
 
-> **직전 갱신 대비 변화(2026-09-03 두 번째)**: writer의 `/internal/**`에 `X-Internal-Key` 검사를 넣었다(`InternalKeyFilter`). 그전까지 이 검사는 게이트웨이에만 있었는데 writer 포트가 호스트로 열려 있어 우회가 가능했다. writer 86 → 94, backend 54 → 55(`writerRestClient`가 헤더를 싣는지 확인). **리뷰가 실제 우회를 재현했다** — 보호 대상을 `/internal/` 접두사로 고르면 `POST /%69nternal/streams`가 필터를 지나쳐 핸들러까지 닿는다(`getRequestURI()`는 디코딩 전 원본, Spring MVC는 디코딩된 경로로 라우팅). 공개 경로만 나열하는 허용 목록으로 뒤집고 회귀 테스트로 고정했다. 기존 writer 컨트롤러 테스트 9개에는 키 헤더를 추가했다 — 이제 그것이 실제 계약이다.
+> **직전 갱신 대비 변화(2026-09-09, Kafka DLQ)**: ml-service와 writer 양쪽에 Kafka DLQ(`image.downloaded.dlq`, `image.analyzed.dlq`)를 추가했다. ml-service 28 → 43(+15, `dlq.py` + `test_dlq.py` 10개 신규, `test_consume.py` +5), writer 94 → 108(+14, `DeadLetterPublisherTest` 10개 신규, `ImageAnalyzedConsumerTest` +4). Docker 스택을 실제로 띄워 두 DLQ 토픽에서 5필드(`source`/`consumer`/`failedAt`/`reason`/`payload`) JSON이 동일한 모양으로 읽히는 것과, 파싱 실패·DB 실패(FK·CHECK) 두 경로 모두 DLQ로 가는 것을 확인했다. 상세: `docs/superpowers/specs/2026-09-09-kafka-dlq-verification.md`. 이 세션엔 writer의 `TrailCommandHandlerPostgresTest` 5개도 Docker가 떠 있어 SKIP 없이 실제로 돌았다(합계 297 → 326).
+>
+> **2026-09-03 두 번째 갱신**: writer의 `/internal/**`에 `X-Internal-Key` 검사를 넣었다(`InternalKeyFilter`). 그전까지 이 검사는 게이트웨이에만 있었는데 writer 포트가 호스트로 열려 있어 우회가 가능했다. writer 86 → 94, backend 54 → 55(`writerRestClient`가 헤더를 싣는지 확인). **리뷰가 실제 우회를 재현했다** — 보호 대상을 `/internal/` 접두사로 고르면 `POST /%69nternal/streams`가 필터를 지나쳐 핸들러까지 닿는다(`getRequestURI()`는 디코딩 전 원본, Spring MVC는 디코딩된 경로로 라우팅). 공개 경로만 나열하는 허용 목록으로 뒤집고 회귀 테스트로 고정했다. 기존 writer 컨트롤러 테스트 9개에는 키 헤더를 추가했다 — 이제 그것이 실제 계약이다.
 >
 > **2026-08-28 대비 변화**: backend에 캡처 트리거 엔드포인트(`POST /api/captures/jobs`, `GET /api/captures/jobs/{jobId}`)를 더해 테스트가 42개에서 54개로 늘었다. `CaptureServiceImplTest`의 새 테스트 5개만 `MockRestServiceServer`를 쓴다 — 기존 딥 스텁 목은 나가는 JSON 본문을 볼 수 없는데 이 경로의 핵심이 `source_url` → `youtube_url` 매핑이라 실제 직렬화를 확인해야 한다.
 >
@@ -214,9 +224,9 @@ API 명세서를 기반으로 TDD(Red → Green → Refactor) 방식으로 테�
 | `ReaderApplicationTests.contextLoads` | `@SpringBootTest`가 실 DataSource를 요구하나 테스트 프로파일에 JDBC URL 없음 | 테스트용 DataSource 설정을 주거나, 인프라 기동 후 재측정 |
 | `WriterApplicationTests.contextLoads` | 동일 | 동일 |
 
-### writer — SKIP 5개 해소됨 (2026-08-27)
+### writer — SKIP 5개 해소됨 (2026-08-27, 2026-09-09 재확인)
 
-`TrailCommandHandlerPostgresTest`는 Testcontainers로 실 PostgreSQL을 띄우는데, 1차 측정 시 Docker가 실행 중이 아니라 스킵됐다. Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했다.
+`TrailCommandHandlerPostgresTest`는 Testcontainers로 실 PostgreSQL을 띄우는데, 1차 측정 시 Docker가 실행 중이 아니라 스킵됐다. Docker Desktop을 띄우고 재실행해 **5개 전부 통과**했다. 2026-09-09 Kafka DLQ 실기동 검증과 같은 세션에서 Docker를 띄운 채 `./mvnw clean test`를 다시 돌려 **다시 5개 전부 통과**를 확인했다 — 회귀 없음.
 
 ```
 PASS realPostgresForeignKeyViolationBecomesIllegalArgumentException
@@ -264,3 +274,4 @@ PASS postgresErrorMessageActuallyContainsLowercaseConstraintName
 - ml-service RED 13개 해소 — 완료 (계획: `docs/superpowers/plans/2026-08-27-ml-service-red-green.md`). **실제 ML 모델은 여전히 없다** — `consume()`이 고정값을 내고 이미지 파일을 열지도 않는다. 저장 위치가 정해지지 않아 분석할 파일에 접근할 방법 자체가 없다(youtube-service 작업에서 결정)
 - Capture 조회 경로 (`GET /api/captures`, `GET /api/captures/{id}`) — 완료 (계획: `docs/superpowers/plans/2026-08-27-capture-read-path.md`). 파이프라인의 출구가 열렸다. 함께 고친 것: `shared`에 `updatedAt` 누락, backend `CaptureController`의 `@RequestParam` 이름 누락(`?stream_id=`와 바인딩 안 됨)
 - youtube-service 캡처 파이프라인 RED 11개 해소 — 완료 (2026-08-28, 설계: `docs/superpowers/sdd/2026-08-27-youtube-capture/`). ffmpeg로 프레임을 캡처해 MinIO에 업로드하고 Kafka `image.downloaded`를 발행한다. YouTube에서 직접 프레임을 추출하는 어댑터는 이용약관 문제로 만들지 않기로 했다(`CAPTURE_SOURCE=testsrc|file|hls`). 이로써 저장소에 미구현 스텁이 하나도 남지 않는다
+- Kafka DLQ (`image.downloaded.dlq`, `image.analyzed.dlq`) — 완료 (2026-09-09). ml-service `consume()`과 writer `ImageAnalyzedConsumer`의 메시지 처리 실패(파싱 실패·DB 제약 위반 둘 다)를 `source`/`consumer`/`failedAt`/`reason`/`payload` 5필드 JSON으로 원본 토픽의 `.dlq` 토픽에 발행한다. `payload`는 원문 문자열이라 파싱 없이 그대로 재발행(리드라이브)할 수 있다. Docker 실기동으로 두 경로와 리드라이브까지 확인했다 — `docs/superpowers/specs/2026-09-09-kafka-dlq-verification.md`. **알려진 갭**: 브로커가 끊겨 컨슈머 루프가 재연결 재시도만 반복하는 동안에도 ml-service의 `/health`는 `healthy`를 낸다(후속 작업)
