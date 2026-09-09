@@ -28,6 +28,12 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    # DLQ 발행용. 이 서비스가 프로듀서를 갖는 것은 DLQ가 처음이라
+    # 직렬화를 기본값에 맡기지 않고 명시한다.
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
 
 # /internal/** 접근에 요구하는 키. backend와 같은 값이어야 한다.
 internal:
