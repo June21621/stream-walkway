@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
+from dlq import publish_dead_letter
+
 
 # 프로세스가 살아 있는 시간을 재기 위한 기준점.
 # lifespan이 아니라 모듈 로드 시점에 잡는다 — 테스트는 lifespan을 mock으로
@@ -66,13 +68,17 @@ async def consume():
                     value=json.dumps(result).encode(),
                 )
                 log.info("발행 완료 topic=image.analyzed result=%s", result)
-            except Exception:
+            except Exception as exc:
                 # 넓게 잡는다. JSON 파싱뿐 아니라 발행 실패도 같은 이유로
-                # 루프를 죽여서는 안 되고, 어느 쪽이든 이 메시지는 버린다.
+                # 루프를 죽여서는 안 된다.
                 #
-                # log.exception은 스택트레이스를 함께 남긴다. 예외 메시지만
-                # 찍으면 브로커 장애로 발행이 계속 실패할 때 원인을 알 수 없다.
-                log.exception("메시지 처리 실패, 건너뜀")
+                # 예전에는 여기서 메시지를 버렸다. 이제 DLQ로 보낸다 —
+                # 원문과 사유가 남아야 나중에 사람이 판단할 수 있다.
+                #
+                # log.exception은 스택트레이스를 함께 남긴다. DLQ의 reason에는
+                # 한 줄만 들어가므로 스택은 여기서만 볼 수 있다.
+                log.exception("메시지 처리 실패, DLQ로 보낸다")
+                await publish_dead_letter(producer, "image.downloaded", "ml", msg.value, exc)
     finally:
         await consumer.stop()
         await producer.stop()

@@ -25,7 +25,7 @@ def dlq_topic(source: str) -> str:
     return f"{source}{DLQ_SUFFIX}"
 
 
-def build_dead_letter(source: str, consumer: str, raw, exc: BaseException) -> bytes:
+def build_dead_letter(source: str, consumer: str, raw: bytes | str, exc: BaseException) -> bytes:
     """
     DLQ 메시지 본문을 만든다.
 
@@ -46,3 +46,22 @@ def build_dead_letter(source: str, consumer: str, raw, exc: BaseException) -> by
     }
     # ensure_ascii=False: 한글이 \uXXXX로 부풀지 않게 한다. 사람이 읽는 데이터다.
     return json.dumps(record, ensure_ascii=False).encode("utf-8")
+
+
+async def publish_dead_letter(producer, source: str, consumer: str, raw, exc: BaseException) -> bool:
+    """
+    실패한 메시지를 DLQ로 보낸다. 성공 여부를 돌려주고 **예외를 던지지 않는다.**
+
+    send()가 아니라 send_and_wait()를 쓴다. aiokafka의 send()는 버퍼에 넣는
+    것까지만 기다려서, 브로커가 죽어도 그 자리에서 예외가 안 날 수 있다.
+    발행 실패가 드러나지 않으면 아래 except가 의미를 잃는다.
+    """
+    topic = dlq_topic(source)
+    try:
+        await producer.send_and_wait(topic, value=build_dead_letter(source, consumer, raw, exc))
+        log.warning("DLQ 적재 topic=%s reason=%s", topic, f"{type(exc).__name__}: {exc}"[:REASON_MAX_LEN])
+        return True
+    except Exception:
+        # 여기가 마지막 흔적이다. 원본 메시지를 통째로 남긴다.
+        log.error("DLQ 발행 실패 topic=%s payload=%r", topic, raw, exc_info=True)
+        return False

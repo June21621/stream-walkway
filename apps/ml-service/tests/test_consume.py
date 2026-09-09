@@ -346,3 +346,112 @@ class TestConsumeErrorHandling:
         # finally 블록이 있으므로 stop은 항상 호출되어야 한다
         consumer_mock.stop.assert_called_once()
         producer_mock.stop.assert_called_once()
+
+
+# ─────────────────────────────────────────
+# DLQ 적재
+# ─────────────────────────────────────────
+
+class TestConsumeDeadLetter:
+
+    @pytest.mark.asyncio
+    async def test_broken_json_goes_to_dlq(self):
+        """깨진 JSON은 image.downloaded.dlq 로 간다"""
+        bad = MagicMock()
+        bad.value = b'{ broken json'
+        consumer_mock = make_consumer_mock(bad)
+        producer_mock = make_producer_mock()
+
+        with patch('main.AIOKafkaConsumer', return_value=consumer_mock), \
+             patch('main.AIOKafkaProducer', return_value=producer_mock):
+            await consume()
+
+        producer_mock.send_and_wait.assert_called_once()
+        args, kwargs = producer_mock.send_and_wait.call_args
+        assert args[0] == 'image.downloaded.dlq'
+
+        record = json.loads(kwargs['value'])
+        assert record['payload'] == '{ broken json'
+        assert record['source'] == 'image.downloaded'
+        assert record['consumer'] == 'ml'
+        assert record['reason'].startswith('JSONDecodeError')
+
+    @pytest.mark.asyncio
+    async def test_normal_message_does_not_touch_dlq(self):
+        """정상 메시지는 DLQ를 건드리지 않는다"""
+        good = make_message({
+            "imageId": 1, "trailId": 7, "streamId": 4,
+            "imagePath": "captures/4/7/x.jpg", "timestamp": "2026-09-09T00:00:00Z",
+        })
+        consumer_mock = make_consumer_mock(good)
+        producer_mock = make_producer_mock()
+
+        with patch('main.AIOKafkaConsumer', return_value=consumer_mock), \
+             patch('main.AIOKafkaProducer', return_value=producer_mock):
+            await consume()
+
+        producer_mock.send_and_wait.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_loop_continues_after_dlq(self):
+        """DLQ로 보낸 뒤에도 뒤따르는 정상 메시지를 계속 처리한다"""
+        bad = MagicMock()
+        bad.value = b'{ broken json'
+        good = make_message({
+            "imageId": 2, "trailId": 7, "streamId": 4,
+            "imagePath": "captures/4/7/y.jpg", "timestamp": "2026-09-09T00:01:00Z",
+        })
+        consumer_mock = make_consumer_mock(bad, good)
+        producer_mock = make_producer_mock()
+
+        with patch('main.AIOKafkaConsumer', return_value=consumer_mock), \
+             patch('main.AIOKafkaProducer', return_value=producer_mock):
+            await consume()
+
+        # 정상 1건은 image.analyzed 로 나갔다
+        producer_mock.send.assert_called_once()
+        assert producer_mock.send.call_args[0][0] == 'image.analyzed'
+        # 실패 1건은 DLQ 로 갔다
+        producer_mock.send_and_wait.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_dlq_failure_does_not_break_loop(self):
+        """DLQ 발행이 실패해도 루프가 죽지 않는다"""
+        bad = MagicMock()
+        bad.value = b'{ broken json'
+        good = make_message({
+            "imageId": 3, "trailId": 7, "streamId": 4,
+            "imagePath": "captures/4/7/z.jpg", "timestamp": "2026-09-09T00:02:00Z",
+        })
+        consumer_mock = make_consumer_mock(bad, good)
+        producer_mock = make_producer_mock()
+        producer_mock.send_and_wait.side_effect = RuntimeError("broker down")
+
+        with patch('main.AIOKafkaConsumer', return_value=consumer_mock), \
+             patch('main.AIOKafkaProducer', return_value=producer_mock):
+            await consume()   # 예외가 새어나오면 여기서 실패한다
+
+        # 브로커가 죽었어도 뒤의 정상 메시지는 계속 시도된다
+        producer_mock.send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_publish_failure_of_analyzed_also_goes_to_dlq(self):
+        """image.analyzed 발행에 실패해도 source 는 구독 토픽이다"""
+        good = make_message({
+            "imageId": 4, "trailId": 7, "streamId": 4,
+            "imagePath": "captures/4/7/w.jpg", "timestamp": "2026-09-09T00:03:00Z",
+        })
+        consumer_mock = make_consumer_mock(good)
+        producer_mock = make_producer_mock()
+        producer_mock.send.side_effect = RuntimeError("broker down")
+
+        with patch('main.AIOKafkaConsumer', return_value=consumer_mock), \
+             patch('main.AIOKafkaProducer', return_value=producer_mock):
+            await consume()
+
+        args, kwargs = producer_mock.send_and_wait.call_args
+        assert args[0] == 'image.downloaded.dlq'
+        record = json.loads(kwargs['value'])
+        # 되돌려보낼 곳은 그 메시지를 받은 토픽이다
+        assert record['source'] == 'image.downloaded'
+        assert record['reason'].startswith('RuntimeError')
