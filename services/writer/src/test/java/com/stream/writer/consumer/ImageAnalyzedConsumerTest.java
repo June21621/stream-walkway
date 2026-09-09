@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -26,6 +28,9 @@ class ImageAnalyzedConsumerTest {
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
+
+    @Mock
+    private DeadLetterPublisher deadLetterPublisher;
 
     @InjectMocks
     private ImageAnalyzedConsumer consumer;
@@ -138,5 +143,88 @@ class ImageAnalyzedConsumerTest {
         );
 
         verify(captureCommandHandler, never()).handle(any());
+    }
+
+    // ─────────────────────────────────────────
+    // DLQ 적재
+    // ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("잘못된 JSON 은 원문 그대로 DLQ 로 넘어간다")
+    void consume_sendsRawMessageToDlqOnInvalidJson() {
+        // given
+        String invalidMessage = "{ broken json }";
+
+        // when
+        consumer.consume(invalidMessage);
+
+        // then
+        verify(deadLetterPublisher).publish(
+                eq("image.analyzed"), eq("writer"), eq(invalidMessage), any(Exception.class));
+    }
+
+    @Test
+    @DisplayName("Handler 가 던지면(DB 장애 등) 그 메시지도 DLQ 로 간다")
+    void consume_sendsToDlqWhenHandlerThrows() {
+        // given - 파싱은 되지만 저장이 실패하는 경우
+        String message = """
+                {
+                  "trailId": 1,
+                  "streamId": 1,
+                  "imagePath": "/images/capture_001.jpg",
+                  "roadStatus": "양호",
+                  "confidence": 0.95
+                }
+                """;
+        doThrow(new IllegalStateException("DB down"))
+                .when(captureCommandHandler).handle(any());
+
+        // when
+        consumer.consume(message);
+
+        // then
+        verify(deadLetterPublisher).publish(
+                eq("image.analyzed"), eq("writer"), eq(message), any(Exception.class));
+    }
+
+    @Test
+    @DisplayName("Handler 가 던져도 예외가 외부로 전파되지 않는다")
+    void consume_doesNotThrowWhenHandlerThrows() {
+        // given
+        String message = """
+                {
+                  "trailId": 1,
+                  "streamId": 1,
+                  "imagePath": "/images/capture_001.jpg",
+                  "roadStatus": "양호",
+                  "confidence": 0.95
+                }
+                """;
+        doThrow(new IllegalStateException("DB down"))
+                .when(captureCommandHandler).handle(any());
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> consumer.consume(message));
+    }
+
+    @Test
+    @DisplayName("정상 처리되면 DLQ 를 건드리지 않는다")
+    void consume_doesNotTouchDlqOnSuccess() {
+        // given
+        String message = """
+                {
+                  "trailId": 1,
+                  "streamId": 1,
+                  "imagePath": "/images/capture_001.jpg",
+                  "roadStatus": "양호",
+                  "confidence": 0.95
+                }
+                """;
+
+        // when
+        consumer.consume(message);
+
+        // then
+        verify(deadLetterPublisher, never()).publish(any(), any(), any(), any());
     }
 }
