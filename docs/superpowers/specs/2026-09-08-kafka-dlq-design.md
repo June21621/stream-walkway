@@ -184,6 +184,34 @@ TDD로 간다. RED를 먼저 확인하고 구현한다.
 3. `.dlq` 토픽이 자동 생성되는지 확인한다(현재 브로커는 자동 생성이 켜져 있고 기존 토픽 둘도 그렇게 생겼다). 명시 생성이 필요하면 그때 판단한다
 4. DLQ 발행 실패 경로 — 브로커를 내린 상태에서 컨슈머가 죽지 않고 ERROR 로그에 원문이 남는지
 
+## DLQ 운영 (확인·재시도)
+
+자동 재처리가 없으므로 **둘 다 사람이 한다.** 명령을 여기 적어두는 이유는, 도구를 만들지 않기로 한 결정이 "방법을 아무도 모르는 상태"로 굳지 않게 하기 위해서다.
+
+**확인**
+
+```bash
+docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh   --bootstrap-server localhost:9092   --topic image.analyzed.dlq --from-beginning --timeout-ms 5000
+```
+
+**재시도** — `payload`를 뽑아 원본 토픽으로 되돌린다.
+
+```bash
+docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh   --bootstrap-server localhost:9092   --topic image.analyzed.dlq --from-beginning --timeout-ms 5000   | jq -r '.payload'   | docker exec -i stream-kafka /opt/kafka/bin/kafka-console-producer.sh       --bootstrap-server localhost:9092 --topic image.analyzed
+```
+
+**이 파이프가 성립하는 것은 `payload`가 원문 문자열이기 때문이다.** 파싱해서 객체로 담았으면 되돌릴 것을 다시 조립해야 한다. 페이로드 결정의 실질적인 값이 여기서 나온다.
+
+Windows Git Bash에 `jq`가 없으면 `python -c "import sys,json; [print(json.loads(l)['payload']) for l in sys.stdin]"`로 대체한다.
+
+### 하기 전에 알아야 할 것 셋
+
+1. **오프셋 기록이 없다.** `--from-beginning`으로 다시 읽으면 **이미 재처리한 것까지 또 들어간다.** 두 번 이상 할 거면 `--group`을 붙여 컨슈머 그룹으로 읽거나, 어디까지 처리했는지 따로 적어둘 것
+2. **영구 실패는 되돌려도 다시 DLQ로 온다.** 깨진 JSON은 몇 번을 넣어도 튕긴다. `reason`을 보고 골라야 하는데 위 파이프는 전부 밀어넣는다
+3. **중복 행이 생길 수 있다.** `captures` 테이블에 유니크 제약이 없다(`init-db.sql` 확인함). writer가 저장 도중 실패했다면 되돌린 메시지가 두 번째 행을 만든다
+
+즉 부담은 "재시도가 번거롭다"가 아니라 **"안전하게 하려면 눈으로 골라야 한다"** 쪽이다. 지금 규모(하천 3, 관측 지점 9)에서는 감당되지만 그게 전제다. 실제로 DLQ가 쌓이는 사고가 한 번 나면 그때 필요한 도구의 모양이 드러나므로, 그 전에 만들지 않는다.
+
 ## 후속 작업
 
 - **`image.analyzed` 발행도 `send_and_wait()`로** — 지금 `send()`라 발행 실패가 조용히 지나갈 수 있다. 이번 범위 밖이지만 같은 성격의 유실 경로다
@@ -194,4 +222,4 @@ TDD로 간다. RED를 먼저 확인하고 구현한다.
 ## 리스크
 
 - **writer 프로듀서가 처음 도입된다.** 스프링 컨텍스트 로딩과 직렬화 설정을 실기동으로 확인해야 한다
-- **DLQ가 조용히 쌓인다.** 알림이 없으므로 "유실은 막았지만 아무도 안 본다"가 될 수 있다. 후속 작업으로 남긴다
+- **DLQ가 조용히 쌓인다.** 알림이 없으므로 "사라진 걸 모른다"가 "쌓인 걸 모른다"로 바뀔 뿐일 수 있다. 유실이 0이 되는 것은 분명한 진전이지만, 발견은 여전히 사람이 토픽을 열어봐야 한다. 후속 작업으로 남긴다
