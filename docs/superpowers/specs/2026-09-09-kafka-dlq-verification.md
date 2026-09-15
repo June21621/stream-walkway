@@ -77,6 +77,14 @@ src`와 `writer builder 13/13 RUN ./mvnw -q -B package -DskipTests`가 `CACHED`�
 `docker start stream-kafka` 후 15초 만에 `healthy`로 복귀했고, writer 로그에
 `Discovered group coordinator kafka:9092`가 다시 찍히며 재연결을 확인했다.
 
+**"ERROR 로그에 원문이 남는지"는 실기동으로 관찰하지 못했다** — 브로커가 없으면 애초에
+DLQ 발행 자체가 실패할 메시지를 투입할 수 없기 때문이다. 그 분기는 유닛 테스트가 덮는다:
+ml-service `test_dlq_failure_does_not_break_loop`(`apps/ml-service/tests/test_consume.py`),
+writer `publish_doesNotThrowWhenSendFailsAsynchronously` /
+`publish_doesNotThrowWhenSendThrowsSynchronously`
+(`services/writer/src/test/java/com/stream/writer/consumer/DeadLetterPublisherTest.java`).
+여기서 실기동으로 확인한 것은 **컨슈머 프로세스가 살아남는가**뿐이다.
+
 ## 확인된 것
 
 **두 DLQ 토픽에서 같은 모양의 5필드 JSON이 읽힌다.** `source`/`consumer`/

@@ -431,6 +431,8 @@ class TestConsumeDeadLetter:
              patch('main.AIOKafkaProducer', return_value=producer_mock):
             await consume()   # 예외가 새어나오면 여기서 실패한다
 
+        # DLQ 발행은 시도됐고(실패했고), 그래도 루프가 살아 있다
+        producer_mock.send_and_wait.assert_called_once()
         # 브로커가 죽었어도 뒤의 정상 메시지는 계속 시도된다
         producer_mock.send.assert_called_once()
 

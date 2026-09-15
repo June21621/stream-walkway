@@ -152,6 +152,8 @@ writer도 Spring의 `DeadLetterPublishingRecoverer`를 쓰지 않고 ml-service�
 
 **`.get()`으로 기다리지 않는다.** DB가 죽어 메시지가 쏟아질 때 리스너 스레드가 메시지마다 몇 초씩 묶이면 안 된다.
 
+이 서술은 절반만 맞다. `.get()`을 피하는 것은 정상 운영 중의 대기를 없애는 것이고, 브로커 장애 시에는 양쪽 모두 타임아웃만큼 막힐 수 있다. `.get()`을 안 써도 `KafkaTemplate.send()` 자체가 DLQ 토픽 메타데이터가 캐시에 없을 때(첫 발행, 또는 오래 안 써서 캐시에서 빠진 경우) `max.block.ms`(기본 60초)까지 블록하고, ml-service의 `send_and_wait`도 브로커가 끊기면 `request_timeout_ms`(기본 40초)까지 루프를 막는다. 브로커 장애 중 배치 안의 실패 메시지가 많으면 `max.poll.interval.ms`(300초)를 넘겨 리밸런스가 날 수 있는데, 그 결과는 유실이 아니라 재전달이다.
+
 **오프셋은 그대로 커밋된다.** 리스너가 정상 반환하기 때문이다. DLQ에 남겼으므로 원본 토픽에서 다시 받을 이유가 없다. 1번 결정의 귀결이다.
 
 `application.yaml`에 프로듀서 직렬화를 **명시한다.** 이 저장소에서 writer가 프로듀서를 갖는 것은 처음이라(`KafkaTemplate` 사용처가 하나도 없다) 기본값에 기대지 않는다.
@@ -188,21 +190,30 @@ TDD로 간다. RED를 먼저 확인하고 구현한다.
 
 자동 재처리가 없으므로 **둘 다 사람이 한다.** 명령을 여기 적어두는 이유는, 도구를 만들지 않기로 한 결정이 "방법을 아무도 모르는 상태"로 굳지 않게 하기 위해서다.
 
+`MSYS_NO_PATHCONV=1`은 Git Bash가 `/opt/...` 경로를 Windows 경로로 바꾸지 않게 한다. Linux·macOS에서는 없어도 되지만 붙여도 무해하다.
+
 **확인**
 
 ```bash
-docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh   --bootstrap-server localhost:9092   --topic image.analyzed.dlq --from-beginning --timeout-ms 5000
+MSYS_NO_PATHCONV=1 docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic image.analyzed.dlq --from-beginning --timeout-ms 5000
 ```
 
 **재시도** — `payload`를 뽑아 원본 토픽으로 되돌린다.
 
 ```bash
-docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh   --bootstrap-server localhost:9092   --topic image.analyzed.dlq --from-beginning --timeout-ms 5000   | jq -r '.payload'   | docker exec -i stream-kafka /opt/kafka/bin/kafka-console-producer.sh       --bootstrap-server localhost:9092 --topic image.analyzed
+MSYS_NO_PATHCONV=1 docker exec stream-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic image.analyzed.dlq --from-beginning --timeout-ms 5000 \
+  | jq -r '.payload' \
+  | MSYS_NO_PATHCONV=1 docker exec -i stream-kafka /opt/kafka/bin/kafka-console-producer.sh \
+      --bootstrap-server localhost:9092 --topic image.analyzed
 ```
 
 **이 파이프가 성립하는 것은 `payload`가 원문 문자열이기 때문이다.** 파싱해서 객체로 담았으면 되돌릴 것을 다시 조립해야 한다. 페이로드 결정의 실질적인 값이 여기서 나온다.
 
-Windows Git Bash에 `jq`가 없으면 `python -c "import sys,json; [print(json.loads(l)['payload']) for l in sys.stdin]"`로 대체한다.
+Windows Git Bash에 `jq`가 없으면 `python -c "import sys,json; [print(json.loads(l)['payload']) for l in sys.stdin if l.strip()]"`로 대체한다.
 
 ### 하기 전에 알아야 할 것 셋
 
